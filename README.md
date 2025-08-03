@@ -1,13 +1,37 @@
-# Sample Hardhat Project
+# 🪙 VibeToken Project
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.
+**VibeToken** is a robust ERC-20 smart contract solution designed for reliability, complete with automated testing and simple deployment. This repository provides everything you need to develop, test, and deploy the VibeToken on any Ethereum-compatible network.
 
-Try running some of the following tasks:
+---
 
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat ignition deploy ./ignition/modules/Lock.js
+## Features
+
+- **ERC-20 Smart Contract:** Secure, customizable token contract written in Solidity.
+- **Comprehensive Testing:** Full JavaScript-based test suite for peace of mind.
+- **Easy Deployment:** Utility scripts for smooth contract deployment.
+- **Modular Project Structure:** Clean separation of contracts, tests, and scripts.
+- **Actively Maintained:** Ongoing improvements and bugfixes.
+
+---
+
+## Project Structure
+
+contracts/ # Solidity source code for VibeToken
+test/ # Automated tests (Mocha/Chai + Hardhat)
+scripts/ # Deployment and utility scripts
 ```
+
+Getting Started
+Clone the repository sh git clone https://github.com/Lahainalindsay/MyVibe.git cd MyVibe
+Install dependencies sh npm install
+Run the test suite sh npx hardhat test
+Deploy the contract sh node scripts/deploy.js
+Contributing
+Contributions and suggestions are welcome! Please open an issue or submit a pull request.
+
+License
+MIT License
+
+Try out VibeToken and boost the vibe of your next blockchain project! 🚀
+```
+
