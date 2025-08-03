@@ -4,16 +4,24 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Snapshot.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol"; // <-- Use this for OZ v3.x
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title VibeToken
- * @dev $VIBE: burn, DAO fee, optimized reflections, vesting, anti-bot
+ * @dev $VIBE: burn, DAO fee, optimized reflections, vesting, anti-bot, snapshots
  */
-contract VibeToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ReentrancyGuard {
+contract VibeToken is 
+    ERC20, 
+    ERC20Burnable, 
+    ERC20Pausable, 
+    ERC20Snapshot, 
+    Ownable, 
+    ReentrancyGuard 
+{
     using EnumerableSet for EnumerableSet.AddressSet;
 
     uint256 public constant TOTAL_SUPPLY = 1111000000 * 10 ** 18;
@@ -49,6 +57,7 @@ contract VibeToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ReentrancyGu
     uint256 public minTokensForDividends = 1000 * 10 ** 18;
 
     bool public tradingEnabled = false;
+    bool public feesEnabled = true;
     uint256 public launchTime;
 
     mapping(address => bool) public snapshotAuthorized;
@@ -68,6 +77,7 @@ contract VibeToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ReentrancyGu
     event MinTokensForDividendsUpdated(uint256 newMinTokens);
     event CooldownTimeUpdated(uint256 newCooldownTime);
     event StakingContractUpdated(address indexed newStakingContract);
+    event FeesEnabledUpdated(bool enabled);
 
     modifier validAddress(address _addr) {
         require(_addr != address(0), "Invalid address");
@@ -79,15 +89,14 @@ contract VibeToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ReentrancyGu
         address _stakingContract,
         address _fairLaunchAddress,
         address _influencerAddress,
-        address /* _teamAddress, not used in logic */
+        address /* _teamAddress */
     )
         ERC20("VIBE", "VIBE")
-        Ownable(msg.sender)
+        Ownable()
     {
         daoWallet = _daoWallet;
         stakingContract = _stakingContract;
 
-        // EXCLUDE addresses BEFORE minting
         excludedFromFees[msg.sender] = true;
         excludedFromFees[_daoWallet] = true;
         excludedFromFees[address(this)] = true;
@@ -98,12 +107,11 @@ contract VibeToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ReentrancyGu
         excludedFromLimits[address(this)] = true;
         excludedFromLimits[_stakingContract] = true;
 
-        // Set allocations
         uint256 fairLaunchAmount = (TOTAL_SUPPLY * 50) / 100;
-        uint256 daoAmount        = (TOTAL_SUPPLY * 20) / 100;
+        uint256 daoAmount = (TOTAL_SUPPLY * 20) / 100;
         uint256 influencerAmount = (TOTAL_SUPPLY * 10) / 100;
-        uint256 teamAmount       = (TOTAL_SUPPLY * 10) / 100;
-        uint256 stakingAmount    = (TOTAL_SUPPLY * 10) / 100;
+        uint256 teamAmount = (TOTAL_SUPPLY * 10) / 100;
+        uint256 stakingAmount = (TOTAL_SUPPLY * 10) / 100;
 
         teamAllocation = teamAmount;
 
@@ -124,6 +132,11 @@ contract VibeToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ReentrancyGu
         emit TradingEnabled(launchTime);
     }
 
+    function enableFees(bool _enabled) external onlyOwner {
+        feesEnabled = _enabled;
+        emit FeesEnabledUpdated(_enabled);
+    }
+
     function updateFees(uint256 _burnRate, uint256 _reflectRate, uint256 _daoRate) external onlyOwner {
         require(_burnRate + _reflectRate + _daoRate <= MAX_FEE_RATE, "Total fee too high");
         burnRate = _burnRate;
@@ -134,6 +147,8 @@ contract VibeToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ReentrancyGu
 
     function updateDaoWallet(address _newDaoWallet) external onlyOwner validAddress(_newDaoWallet) {
         daoWallet = _newDaoWallet;
+        excludedFromFees[_newDaoWallet] = true;
+        excludedFromLimits[_newDaoWallet] = true;
         emit DaoWalletUpdated(_newDaoWallet);
     }
 
@@ -171,45 +186,37 @@ contract VibeToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ReentrancyGu
 
     function updateStakingContract(address _newStakingContract) external onlyOwner validAddress(_newStakingContract) {
         stakingContract = _newStakingContract;
+        excludedFromFees[_newStakingContract] = true;
+        excludedFromLimits[_newStakingContract] = true;
         emit StakingContractUpdated(_newStakingContract);
     }
 
     function withdrawTeamTokens(address to, uint256 amount) external onlyOwner {
         require(block.timestamp >= teamUnlockTime, "Locked");
-        require(teamTokensWithdrawn + amount <= teamAllocation, "Exceeds team allocation");
+        require(teamTokensWithdrawn + amount <= teamAllocation, "Exceeds allocation");
         teamTokensWithdrawn += amount;
         _transfer(address(this), to, amount);
         emit TeamTokensWithdrawn(to, amount);
     }
 
     function rescueStuckTokens(address token, uint256 amount) external onlyOwner {
-        require(token != address(this), "No rugging");
+        require(token != address(this), "Cannot rescue VIBE");
         IERC20(token).transfer(owner(), amount);
     }
 
-    function pause() external onlyOwner {
-        _pause();
-    }
+    function pause() external onlyOwner { _pause(); }
+    function unpause() external onlyOwner { _unpause(); }
 
-    function unpause() external onlyOwner {
-        _unpause();
-    }
-
-    // === Reflection + Dividend ===
+    // === Dividends ===
     function claimDividends() external nonReentrant {
-        _updateDividends(msg.sender);
-    }
-
-    function _updateDividends(address account) private {
-        if (excludedFromFees[account] || balanceOf(account) < minTokensForDividends) return;
-        uint256 owed = dividendsOwing(account);
+        uint256 owed = dividendsOwing(msg.sender);
         if (owed > 0 && owed <= unclaimedDividends) {
-            lastDivPoints[account] = totalDivPoints;
+            lastDivPoints[msg.sender] = totalDivPoints;
             unclaimedDividends -= owed;
-            _transfer(address(this), account, owed);
-            emit DividendClaimed(account, owed);
+            _transfer(address(this), msg.sender, owed);
+            emit DividendClaimed(msg.sender, owed);
         } else {
-            lastDivPoints[account] = totalDivPoints;
+            lastDivPoints[msg.sender] = totalDivPoints;
         }
     }
 
@@ -220,52 +227,55 @@ contract VibeToken is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ReentrancyGu
     }
 
     function _distributeReflection(uint256 reflectionAmount) private {
-        if (totalSupply() == 0 || reflectionAmount == 0) return;
-        totalDivPoints += (reflectionAmount * POINT_MULTIPLIER) / totalSupply();
+        uint256 circulatingSupply = getCirculatingSupply();
+        if (circulatingSupply == 0 || reflectionAmount == 0) return;
+        totalDivPoints += (reflectionAmount * POINT_MULTIPLIER) / circulatingSupply;
         unclaimedDividends += reflectionAmount;
         totalReflectionDistributed += reflectionAmount;
     }
 
-    // === Core Transfer Logic: override _update ===
-    function _update(address from, address to, uint256 amount)
+    // === Transfer Logic ===
+    function _transfer(address from, address to, uint256 amount)
         internal
-        override(ERC20, ERC20Pausable)
+        override
     {
         require(!isBlacklisted[from] && !isBlacklisted[to], "Blacklisted");
-// Only impose limits/cooldown/trading checks on NORMAL transfers, not mint/burn
-if (from != address(0) && to != address(0)) {
-    if (!excludedFromLimits[from] && !excludedFromLimits[to]) {
-        require(tradingEnabled, "Trading off");
-        require(amount <= maxTxAmount, "Over tx limit");
-        require(balanceOf(to) + amount <= maxWalletAmount, "Wallet cap hit");
-        require(_lastTxTime[from] + cooldownTime <= block.timestamp, "Cooldown");
-        _lastTxTime[from] = block.timestamp;
-    }
-}
-        _updateDividends(from);
-        _updateDividends(to);
 
-        bool takeFee = !excludedFromFees[from] && !excludedFromFees[to] && from != address(0) && to != address(0);
+        if (from != address(0) && to != address(0)) {
+            if (!excludedFromLimits[from] && !excludedFromLimits[to]) {
+                require(tradingEnabled, "Trading off");
+                require(amount <= maxTxAmount, "Tx limit");
+                require(balanceOf(to) + amount <= maxWalletAmount, "Wallet cap");
+                require(_lastTxTime[from] + cooldownTime <= block.timestamp, "Cooldown");
+                require(_lastTxTime[to] + cooldownTime <= block.timestamp, "Cooldown");
+                _lastTxTime[from] = block.timestamp;
+                _lastTxTime[to] = block.timestamp;
+            }
+        }
+
+        _updateHolderStatus(from);
+        _updateHolderStatus(to);
+
+        bool takeFee = feesEnabled && !excludedFromFees[from] && !excludedFromFees[to];
 
         if (takeFee) {
             uint256 totalFee = (amount * (burnRate + daoRate + reflectRate)) / FEE_DENOMINATOR;
             uint256 burnAmt = (amount * burnRate) / FEE_DENOMINATOR;
             uint256 daoAmt = (amount * daoRate) / FEE_DENOMINATOR;
             uint256 reflectAmt = totalFee - burnAmt - daoAmt;
-            if (burnAmt > 0) super._update(from, address(0xdead), burnAmt);
-            if (daoAmt > 0) super._update(from, daoWallet, daoAmt);
+
+            if (burnAmt > 0) super._transfer(from, address(0xdead), burnAmt);
+            if (daoAmt > 0) super._transfer(from, daoWallet, daoAmt);
             if (reflectAmt > 0) {
-                super._update(from, address(this), reflectAmt);
+                super._transfer(from, address(this), reflectAmt);
                 _distributeReflection(reflectAmt);
             }
-            emit FeesDistributed(burnAmt, daoAmt, reflectAmt);
 
-            super._update(from, to, amount - totalFee);
+            emit FeesDistributed(burnAmt, daoAmt, reflectAmt);
+            super._transfer(from, to, amount - totalFee);
         } else {
-            super._update(from, to, amount);
+            super._transfer(from, to, amount);
         }
-        _updateHolderStatus(from);
-        _updateHolderStatus(to);
     }
 
     function _updateHolderStatus(address account) private {
@@ -284,26 +294,18 @@ if (from != address(0) && to != address(0)) {
 
     function snapshot() external returns (uint256) {
         require(snapshotAuthorized[msg.sender], "Not authorized");
-        uint256 id = block.number;
+        uint256 id = _snapshot();
         emit SnapshotTriggered(id);
         return id;
     }
 
     // === View functions ===
-    function getHolderCount() external view returns (uint256) {
-        return holders.length();
-    }
+    function getHolderCount() external view returns (uint256) { return holders.length(); }
+    function getHolderAt(uint256 i) external view returns (address) { return holders.at(i); }
+    function getTotalFeeRate() external view returns (uint256) { return burnRate + daoRate + reflectRate; }
 
-    function getHolderAt(uint256 i) external view returns (address) {
-        return holders.at(i);
-    }
-
-    function getTotalFeeRate() external view returns (uint256) {
-        return burnRate + daoRate + reflectRate;
-    }
-
-    function getCirculatingSupply() external view returns (uint256) {
-        return totalSupply() - balanceOf(address(0)) - balanceOf(address(0xdead));
+    function getCirculatingSupply() public view returns (uint256) {
+        return totalSupply() - balanceOf(address(0)) - balanceOf(address(0xdead)) - balanceOf(address(this));
     }
 
     function getPendingDividends(address account) external view returns (uint256) {
@@ -314,11 +316,13 @@ if (from != address(0) && to != address(0)) {
         return unclaimedDividends;
     }
 
-    function isExcludedFromFees(address account) external view returns (bool) {
-        return excludedFromFees[account];
-    }
+    function isExcludedFromFees(address account) external view returns (bool) { return excludedFromFees[account]; }
+    function isExcludedFromLimits(address account) external view returns (bool) { return excludedFromLimits[account]; }
 
-    function isExcludedFromLimits(address account) external view returns (bool) {
-        return excludedFromLimits[account];
+    function _beforeTokenTransfer(address from, address to, uint256 amount)
+        internal
+        override(ERC20, ERC20Snapshot, ERC20Pausable)
+    {
+        super._beforeTokenTransfer(from, to, amount);
     }
 }
