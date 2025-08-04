@@ -21,15 +21,20 @@ test/ # Automated tests (Mocha/Chai + Hardhat)
 scripts/ # Deployment and utility scripts
 ```
 
-Getting Started
-Clone the repository sh git clone https://github.com/Lahainalindsay/MyVibe.git cd MyVibe
-Install dependencies sh npm install
-Run the test suite sh npx hardhat test
-Deploy the contract sh node scripts/deploy.js
+# Getting Started
+# Clone the repository via ssh 
+git clone git@github.com:Lahainalindsay/MyVibe.git
+cd MyVibe/
+# Install dependencies  
+npm install
+# Run the test suite 
+npx hardhat test
+# Deploy the contract  
+node scripts/deploy.js
 Contributing
 Contributions and suggestions are welcome! Please open an issue or submit a pull request.
 
-License
+License 
 MIT License
 
 Try out VibeToken and boost the vibe of your next blockchain project! 🚀
