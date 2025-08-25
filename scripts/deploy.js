@@ -1,11 +1,10 @@
 const hre = require("hardhat");
 
 async function main() {
-  const [deployer, dao, staking, fairLaunch, influencer] = await hre.ethers.getSigners();
+  const [deployer, dao, staking, fairLaunch, influencer, nftOwner] = await hre.ethers.getSigners();
+  console.log("Deployer:", deployer.address);
 
-  console.log("🚀 Deploying contracts with:", deployer.address);
-
-  // 1. Deploy VibeToken
+  // 1) VibeToken
   const VibeToken = await hre.ethers.getContractFactory("VibeToken");
   const vibe = await VibeToken.deploy(
     dao.address,
@@ -14,30 +13,45 @@ async function main() {
     influencer.address,
     deployer.address
   );
-  console.log("✅ VibeToken deployed at:", vibe.target);
+  await vibe.waitForDeployment();
+  console.log("VibeToken:", await vibe.getAddress());
 
-  // 2. Deploy Renderer
+  // (Optional) loosen limits for initial distribution/testing
+  await (await vibe.setTradingEnabled(true)).wait();
+  await (await vibe.setLimits(
+    hre.ethers.parseUnits("1000000000", 18), // maxTx ~ full supply
+    hre.ethers.parseUnits("1000000000", 18), // maxWallet ~ full supply
+    0 // cooldown
+  )).wait();
+
+  // 2) Renderer
   const Renderer = await hre.ethers.getContractFactory("SigilArcanaOnChainRenderer");
   const renderer = await Renderer.deploy();
-  console.log("✅ Renderer deployed at:", renderer.target);
+  await renderer.waitForDeployment();
+  console.log("Renderer:", await renderer.getAddress());
 
-  // 3. Deploy SoulArcanaNFT (pass vibe + renderer)
+  // 3) SoulArcanaNFT
   const SoulArcanaNFT = await hre.ethers.getContractFactory("SoulArcanaNFT");
-  const soulArcana = await SoulArcanaNFT.deploy(
-    vibe.target, // Vibe token address
-    renderer.target, // Renderer address
-    "ipfs://QmExample" // <-- Replace with your real base URI
+  const soul = await SoulArcanaNFT.deploy(
+    await renderer.getAddress(),
+    await vibe.getAddress(),
+    nftOwner.address
   );
-  console.log("✅ SoulArcanaNFT deployed at:", soulArcana.target);
+  await soul.waitForDeployment();
+  console.log("SoulArcanaNFT:", await soul.getAddress());
 
-  // 4. (Optional) Set NFT address inside VibeToken if needed
-  // If VibeToken requires knowing the NFT contract, call a setter here:
-  // await vibe.setSoulArcanaNFT(soulArcana.target);
-  // console.log("🔗 Linked SoulArcanaNFT with VibeToken");
+  // Set fair mint prices (optional)
+  await (await soul.connect(nftOwner).setPrices(
+    hre.ethers.parseEther("0.01"),
+    hre.ethers.parseUnits("1000", 18)
+  )).wait();
+
+  console.log("✅ Deployment complete");
 }
 
-main().catch((error) => {
-  console.error(error);
+main().catch((e) => {
+  console.error(e);
   process.exitCode = 1;
 });
+
 

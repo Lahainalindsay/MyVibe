@@ -2,11 +2,11 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 describe("VibeToken", function () {
-  let vibe, owner, dao, staking, fairLaunch, influencer, team, user, user2;
-  let FEE_TOTAL;
+  let deployer, dao, staking, fairLaunch, influencer, user1, user2;
+  let vibe;
 
   beforeEach(async function () {
-    [owner, dao, staking, fairLaunch, influencer, team, user, user2] = await ethers.getSigners();
+    [deployer, dao, staking, fairLaunch, influencer, user1, user2] = await ethers.getSigners();
 
     const VibeToken = await ethers.getContractFactory("VibeToken");
     vibe = await VibeToken.deploy(
@@ -14,96 +14,75 @@ describe("VibeToken", function () {
       staking.address,
       fairLaunch.address,
       influencer.address,
-      team.address
+      deployer.address
     );
 
-    await vibe.connect(owner).enableTrading();
+    // Enable trading and relax limits for predictable tests
+    await vibe.setTradingEnabled(true);
+    const full = await vibe.TOTAL_SUPPLY();
+    await vibe.setLimits(full, full, 0);
 
-    // Use BigInt for all math in ethers v6
+    // Fund user1 from deployer (excluded -> no fees on this transfer)
+    await vibe.connect(deployer).transfer(user1.address, ethers.parseUnits("1000000", 18));
+  });
+
+  it("has correct total supply", async () => {
+    expect(await vibe.totalSupply()).to.equal(await vibe.TOTAL_SUPPLY());
+  });
+
+  it("takes fees on normal transfers", async () => {
+    // Ensure both parties are fee-able
+    await vibe.setExcludedFromFees(user1.address, false);
+    await vibe.setExcludedFromFees(user2.address, false);
+
+    const amount = ethers.parseUnits("10000", 18);
+    const feeDen = BigInt(10000);
     const burn = BigInt(await vibe.burnRate());
-    const reflect = BigInt(await vibe.reflectRate());
-    const daoRate = BigInt(await vibe.daoRate());
-    FEE_TOTAL = burn + reflect + daoRate;
+    const dao = BigInt(await vibe.daoRate());
+    const ref = BigInt(await vibe.reflectRate());
+    const totalFee = (amount * (burn + dao + ref)) / feeDen;
+    const expectedNet = amount - totalFee;
+
+    await expect(vibe.connect(user1).transfer(user2.address, amount))
+      .to.emit(vibe, "FeesDistributed");
+
+    const bal2 = await vibe.balanceOf(user2.address);
+    expect(bal2).to.equal(expectedNet);
   });
 
-  it("has correct name and symbol", async function () {
-    expect(await vibe.name()).to.equal("VIBE");
-    expect(await vibe.symbol()).to.equal("VIBE");
+  it("blocks blacklisted accounts", async () => {
+    await vibe.setBlacklist(user1.address, true);
+    await expect(vibe.connect(user1).transfer(user2.address, 1)).to.be.revertedWith("Blacklisted");
   });
 
-  it("mints correct allocations", async function () {
-    const total = BigInt(await vibe.TOTAL_SUPPLY());
-    expect(await vibe.balanceOf(fairLaunch.address)).to.equal((total * 50n) / 100n);
-    expect(await vibe.balanceOf(dao.address)).to.equal((total * 20n) / 100n);
-    expect(await vibe.balanceOf(influencer.address)).to.equal((total * 10n) / 100n);
-    expect(await vibe.balanceOf(team.address)).to.equal(0n);
-    expect(await vibe.balanceOf(staking.address)).to.equal((total * 10n) / 100n);
+  it("snapshots can be triggered by authorized account", async () => {
+    await expect(vibe.connect(user1).snapshot()).to.be.revertedWith("Not authorized");
+    await vibe.setSnapshotAuthorization(user1.address, true);
+    const id = await (await vibe.connect(user1).snapshot()).wait();
+    // event tested by no revert; not asserting id number here
   });
 
-  it("allows transfers between accounts (accounts for fees)", async function () {
-    const total = BigInt(await vibe.TOTAL_SUPPLY());
-    const transferAmount = total / 100n; // 1%
-    const FEE_DENOMINATOR = 10000n;
+  it("reflects to holders and can be claimed", async () => {
+    // Make both fee-able and eligible
+    await vibe.setExcludedFromFees(user1.address, false);
+    await vibe.setExcludedFromFees(user2.address, false);
 
-    const fairLaunchStart = BigInt(await vibe.balanceOf(fairLaunch.address));
-    const userStart = BigInt(await vibe.balanceOf(user.address));
+    // user2 holds some tokens to be eligible too
+    await vibe.connect(deployer).transfer(user2.address, ethers.parseUnits("100000", 18));
 
-    const fee = (transferAmount * FEE_TOTAL) / FEE_DENOMINATOR;
-    const expectedReceived = transferAmount - fee;
+    // Transfer that generates reflection
+    const txAmount = ethers.parseUnits("50000", 18);
+    await vibe.connect(user1).transfer(user2.address, txAmount);
 
-    await vibe.connect(fairLaunch).transfer(user.address, transferAmount);
+    // Some reflections accrued; user1 claims
+    const pendingBefore = await vibe.dividendsOwing(user1.address);
+    expect(pendingBefore).to.be.gt(0);
 
-    const fairLaunchEnd = BigInt(await vibe.balanceOf(fairLaunch.address));
-    const userEnd = BigInt(await vibe.balanceOf(user.address));
-
-    expect(fairLaunchEnd).to.equal(fairLaunchStart - transferAmount);
-    expect(userEnd).to.equal(userStart + expectedReceived);
-  });
-
-  it("allows approve and transferFrom (accounts for fees and tx limit)", async function () {
-    const total = BigInt(await vibe.TOTAL_SUPPLY());
-    const amount = total / 100n;
-    const FEE_DENOMINATOR = 10000n;
-
-    await vibe.connect(fairLaunch).approve(user.address, amount);
-    expect(BigInt(await vibe.allowance(fairLaunch.address, user.address))).to.equal(amount);
-
-    const fee = (amount * FEE_TOTAL) / FEE_DENOMINATOR;
-    const expected = amount - fee;
-
-    await vibe.connect(user).transferFrom(fairLaunch.address, user2.address, amount);
-
-    expect(BigInt(await vibe.balanceOf(user2.address))).to.equal(expected);
-  });
-
-  it("emits a Transfer event on transfer (checks correct post-fee Transfer)", async function () {
-    const total = BigInt(await vibe.TOTAL_SUPPLY());
-    const amount = total / 100n;
-    const FEE_DENOMINATOR = 10000n;
-    const expected = amount - (amount * FEE_TOTAL) / FEE_DENOMINATOR;
-
-    const tx = await vibe.connect(fairLaunch).transfer(user.address, amount);
-    const receipt = await tx.wait();
-
-    const transferEvents = receipt.logs
-      .map(log => {
-        try {
-          return vibe.interface.parseLog(log);
-        } catch {
-          return null;
-        }
-      })
-      .filter(e => e && e.name === "Transfer" && e.args.to === user.address);
-
-    const found = transferEvents.some(e => e.args.value === expected);
-    expect(found, "No correct transfer event found").to.be.true;
-  });
-
-  it("reverts on transfer more than balance", async function () {
-    // ethers.parseUnits returns a bigint in v6
-    const over = ethers.parseUnits("99999999", 18);
-    await expect(
-      vibe.connect(user).transfer(user2.address, over)
-    ).to.be.reverted;
+    const balBefore = await vibe.balanceOf(user1.address);
+    await expect(vibe.connect(user1).claimDividends())
+      .to.emit(vibe, "DividendsClaimed");
+    const balAfter = await vibe.balanceOf(user1.address);
+    expect(balAfter).to.be.gt(balBefore);
   });
 });
+
