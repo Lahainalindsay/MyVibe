@@ -20,7 +20,7 @@ describe("SoulArcanaNFT", function () {
     const full = await vibe.TOTAL_SUPPLY();
     await (await vibe.setLimits(full, full, 0)).wait();
 
-    await (await vibe.connect(deployer).transfer(user.address, ethers.parseUnits("100000", 18))).wait();
+    await (await vibe.connect(deployer).transfer(user.address, ethers.utils.parseUnits("100000", 18))).wait();
     await (await vibe.setExcludedFromFees(user.address, true)).wait();
 
     const Renderer = await ethers.getContractFactory("SigilArcanaOnChainRenderer");
@@ -29,7 +29,7 @@ describe("SoulArcanaNFT", function () {
     const Soul = await ethers.getContractFactory("SoulArcanaNFT");
     soul = await Soul.deploy(await renderer.getAddress(), await vibe.getAddress(), owner.address);
 
-    await (await soul.connect(owner).setPrices(ethers.parseEther("0.01"), ethers.parseUnits("1000", 18))).wait();
+    await (await soul.connect(owner).setPrices(ethers.utils.parseEther("0.01"), ethers.utils.parseUnits("1000", 18))).wait();
   });
 
   it("mints with ETH (quantity)", async () => {
@@ -76,14 +76,12 @@ describe("SoulArcanaNFT", function () {
   it("treasury receives ETH and VIBE", async () => {
     const treasury = await soul.treasury();
 
-    // ETH
     const ethPrice = await soul.mintPriceETH();
     const beforeEth = await ethers.provider.getBalance(treasury);
     await (await soul.connect(user).mint(1n, { value: ethPrice })).wait();
     const afterEth = await ethers.provider.getBalance(treasury);
     expect(afterEth - beforeEth).to.equal(ethPrice);
 
-    // VIBE
     const qty = 2n;
     const vPrice = await soul.mintPriceVIBE();
     const total = vPrice * qty;

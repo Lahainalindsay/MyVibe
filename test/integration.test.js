@@ -13,7 +13,7 @@ describe("Integration: Vibe + SoulArcana + Renderer", function () {
     const full = await vibe.TOTAL_SUPPLY();
     await (await vibe.setLimits(full, full, 0)).wait();
 
-    await (await vibe.connect(deployer).transfer(minter.address, ethers.parseUnits("5000", 18))).wait();
+    await (await vibe.connect(deployer).transfer(minter.address, ethers.utils.parseUnits("5000", 18))).wait();
     await (await vibe.setExcludedFromFees(minter.address, true)).wait();
 
     const Renderer = await ethers.getContractFactory("SigilArcanaOnChainRenderer");
@@ -22,7 +22,7 @@ describe("Integration: Vibe + SoulArcana + Renderer", function () {
     const Soul = await ethers.getContractFactory("SoulArcanaNFT");
     const soul = await Soul.deploy(await renderer.getAddress(), await vibe.getAddress(), owner.address);
 
-    await (await soul.connect(owner).setPrices(ethers.parseEther("0.01"), ethers.parseUnits("1000", 18))).wait();
+    await (await soul.connect(owner).setPrices(ethers.utils.parseEther("0.01"), ethers.utils.parseUnits("1000", 18))).wait();
 
     const qty = 3n;
     const price = await soul.mintPriceVIBE();
