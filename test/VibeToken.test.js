@@ -1,3 +1,4 @@
+
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
@@ -21,8 +22,7 @@ describe("VibeToken", function () {
     const full = await vibe.TOTAL_SUPPLY();
     await (await vibe.setLimits(full, full, 0)).wait();
 
-    // seed user1
-    await (await vibe.connect(deployer).transfer(user1.address, ethers.parseUnits("1000000", 18))).wait();
+    await (await vibe.connect(deployer).transfer(user1.address, ethers.utils.parseUnits("1000000", 18))).wait();
   });
 
   it("has correct total supply", async () => {
@@ -33,7 +33,7 @@ describe("VibeToken", function () {
     await (await vibe.setExcludedFromFees(user1.address, false)).wait();
     await (await vibe.setExcludedFromFees(user2.address, false)).wait();
 
-    const amount = ethers.parseUnits("10000", 18);
+    const amount = ethers.utils.parseUnits("10000", 18);
     const feeDen = 10000n;
     const burn = BigInt(await vibe.burnRate());
     const dao = BigInt(await vibe.daoRate());
@@ -64,9 +64,9 @@ describe("VibeToken", function () {
     await (await vibe.setExcludedFromFees(user1.address, false)).wait();
     await (await vibe.setExcludedFromFees(user2.address, false)).wait();
 
-    await (await vibe.connect(deployer).transfer(user2.address, ethers.parseUnits("100000", 18))).wait();
+    await (await vibe.connect(deployer).transfer(user2.address, ethers.utils.parseUnits("100000", 18))).wait();
 
-    const txAmount = ethers.parseUnits("50000", 18);
+    const txAmount = ethers.utils.parseUnits("50000", 18);
     await (await vibe.connect(user1).transfer(user2.address, txAmount)).wait();
 
     const pendingBefore = await vibe.dividendsOwing(user1.address);
