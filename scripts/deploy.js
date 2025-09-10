@@ -2,7 +2,7 @@
 const hre = require("hardhat");
 
 async function main() {
-  const [deployer, dao, staking, fairLaunch, influencer, nftOwner] = await hre.ethers.getSigners();
+  const [deployer, dao, staking, fairLaunch, influencer] = await hre.ethers.getSigners();
   console.log("🚀 Deployer:", deployer.address);
 
   const VibeToken = await hre.ethers.getContractFactory("VibeToken");
@@ -10,45 +10,46 @@ async function main() {
     dao.address,
     staking.address,
     fairLaunch.address,
-    influencer.address,
-    deployer.address
+    influencer.address
   );
-  await vibe.waitForDeployment();
-  const vibeAddr = await vibe.getAddress();
+  await vibe.deployed();
+  const vibeAddr = vibe.address;
   console.log("✅ VibeToken:", vibeAddr);
 
-  await (await vibe.setTradingEnabled(true)).wait();
-  await (await vibe.setLimits(
-    hre.ethers.utils.parseUnits("1000000000", 18),
-    hre.ethers.utils.parseUnits("1000000000", 18),
-    0
-  )).wait();
+  // Enable trading + loosen limits for testing
+  await vibe.setTradingEnabled(true);
+  await vibe.setLimits(
+    hre.ethers.parseUnits("1000000000", 18), // maxTx ~ full supply
+    hre.ethers.parseUnits("1000000000", 18), // maxWallet ~ full supply
+    0 // cooldown
+  );
 
   const Renderer = await hre.ethers.getContractFactory("SigilArcanaOnChainRenderer");
   const renderer = await Renderer.deploy();
-  await renderer.waitForDeployment();
-  const rendererAddr = await renderer.getAddress();
+  await renderer.deployed();
+  const rendererAddr = renderer.address;
   console.log("✅ Renderer:", rendererAddr);
 
   const SoulArcanaNFT = await hre.ethers.getContractFactory("SoulArcanaNFT");
-  const soul = await SoulArcanaNFT.deploy(
-    rendererAddr,
-    vibeAddr,
-    nftOwner.address
-  );
-  await soul.waitForDeployment();
-  const soulAddr = await soul.getAddress();
+  const soul = await SoulArcanaNFT.deploy(rendererAddr, vibeAddr, deployer.address);
+  await soul.deployed();
+  const soulAddr = soul.address;
   console.log("✅ SoulArcanaNFT:", soulAddr);
 
-  await (await vibe.setExcludedFromFees(soulAddr, true)).wait();
-  await (await vibe.setExcludedFromLimits(soulAddr, true)).wait();
+  // Exclude NFT from fees/limits
+  await vibe.setExcludedFromFees(soulAddr, true);
+  await vibe.setExcludedFromLimits(soulAddr, true);
 
-  await (await soul.connect(nftOwner).setPrices(
-    hre.ethers.utils.parseEther("0.01"),
-    hre.ethers.utils.parseUnits("1000", 18)
-  )).wait();
+  // Set mint prices
+  await soul.setPrices(
+    hre.ethers.parseEther("0.01"),
+    hre.ethers.parseUnits("1000", 18)
+  );
 
   console.log("🎉 Deployment complete");
 }
 
-main().catch((e) => { console.error(e); process.exitCode = 1; });
+main().catch((e) => {
+  console.error(e);
+  process.exitCode = 1;
+});
