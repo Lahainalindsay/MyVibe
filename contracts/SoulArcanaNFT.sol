@@ -115,7 +115,7 @@ contract SoulArcanaNFT is ERC721Enumerable, Ownable {
 
     // --- Metadata ---
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        require(_exists(tokenId), "Nonexistent token"); // ✅ OZ v4 uses _exists
+        require(_ownerOf(tokenId) != address(0), "Nonexistent token");
         return renderer.tokenURI(tokenId, tokenArcana[tokenId]);
     }
 }
