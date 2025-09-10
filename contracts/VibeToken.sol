@@ -1,21 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.20;
 
-/*
- * VibeToken: ERC20 with fee routing (burn + DAO + reflections),
- * trading limits (maxTx, maxWallet, cooldown), blacklist, snapshots,
- * and simple dividends via dividend points.
- *
- * OpenZeppelin v5.x.
- */
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {ERC20Snapshot} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Snapshot.sol";
-import {ERC20Pausable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-
-contract VibeToken is ERC20, ERC20Snapshot, ERC20Pausable, Ownable {
+contract VibeToken is ERC20, ERC20Pausable, Ownable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     // --- Supply ---
@@ -54,9 +45,6 @@ contract VibeToken is ERC20, ERC20Snapshot, ERC20Pausable, Ownable {
     EnumerableSet.AddressSet private holders;
     uint256 public minTokensForDividends = 1_000 * 1e18;
 
-    // Snapshots
-    mapping(address => bool) public snapshotAuthorized;
-
     // --- Events ---
     event FeesDistributed(uint256 burnAmt, uint256 daoAmt, uint256 reflectAmt);
     event TradingEnabled(bool enabled);
@@ -64,45 +52,39 @@ contract VibeToken is ERC20, ERC20Snapshot, ERC20Pausable, Ownable {
     event BlacklistUpdated(address indexed account, bool blacklisted);
     event ExcludedFromFees(address indexed account, bool status);
     event ExcludedFromLimits(address indexed account, bool status);
-    event SnapshotAuthorizationUpdated(address indexed account, bool authorized);
-    event SnapshotTriggered(uint256 id);
     event DividendsClaimed(address indexed account, uint256 amount);
 
     constructor(
         address _daoWallet,
         address staking,       // kept for constructor parity / allocation mgmt
         address fairLaunch,    // optional distribution wallet
-        address influencer,    // optional marketing wallet
-        address owner_
-    ) ERC20("VibeToken", "VIBE") Ownable(owner_) {
+        address influencer    // optional marketing wallet
+    ) ERC20("VibeToken", "VIBE") {
         require(_daoWallet != address(0), "DAO wallet required");
         daoWallet = _daoWallet;
 
-        // Mint all to owner
-        _mint(owner_, TOTAL_SUPPLY);
+        // Mint all to deployer (owner is msg.sender in OZ v4)
+        _mint(msg.sender, TOTAL_SUPPLY);
 
         // Defaults: 2%
         maxTxAmount = (TOTAL_SUPPLY * 200) / FEE_DENOMINATOR;
         maxWalletAmount = (TOTAL_SUPPLY * 200) / FEE_DENOMINATOR;
 
         // Exclusions
-        excludedFromFees[owner_] = true;
+        excludedFromFees[msg.sender] = true;
         excludedFromFees[daoWallet] = true;
         if (staking != address(0)) excludedFromFees[staking] = true;
         if (fairLaunch != address(0)) excludedFromFees[fairLaunch] = true;
         if (influencer != address(0)) excludedFromFees[influencer] = true;
 
-        excludedFromLimits[owner_] = true;
+        excludedFromLimits[msg.sender] = true;
         excludedFromLimits[daoWallet] = true;
         if (staking != address(0)) excludedFromLimits[staking] = true;
         if (fairLaunch != address(0)) excludedFromLimits[fairLaunch] = true;
         if (influencer != address(0)) excludedFromLimits[influencer] = true;
 
         // initial holder status
-        _updateHolderStatus(owner_);
-
-        // owner can snapshot by default
-        snapshotAuthorized[owner_] = true;
+        _updateHolderStatus(msg.sender);
     }
 
     // --- Admin ---
@@ -131,14 +113,6 @@ contract VibeToken is ERC20, ERC20Snapshot, ERC20Pausable, Ownable {
     function setExcludedFromLimits(address account, bool status) external onlyOwner { excludedFromLimits[account] = status; emit ExcludedFromLimits(account, status); }
 
     function setMinTokensForDividends(uint256 amount) external onlyOwner { minTokensForDividends = amount; }
-
-    // Snapshots
-    function setSnapshotAuthorization(address account, bool auth) external onlyOwner { snapshotAuthorized[account] = auth; emit SnapshotAuthorizationUpdated(account, auth); }
-
-    function snapshot() external returns (uint256) {
-        require(snapshotAuthorized[msg.sender] || msg.sender == owner(), "Not authorized");
-        uint256 id = _snapshot(); emit SnapshotTriggered(id); return id;
-    }
 
     // --- Reflection accounting ---
     function dividendsOwing(address account) public view returns (uint256) {
@@ -176,9 +150,12 @@ contract VibeToken is ERC20, ERC20Snapshot, ERC20Pausable, Ownable {
         return totalSupply() - balanceOf(address(0)) - balanceOf(address(0xdead)) - balanceOf(address(this));
     }
 
-    // --- Transfer overrides ---
-    function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Snapshot, ERC20Pausable) {
-        super._update(from, to, value);
+    // --- Transfer hooks ---
+    function _beforeTokenTransfer(address from, address to, uint256 amount)
+        internal
+        override(ERC20, ERC20Pausable)
+    {
+        super._beforeTokenTransfer(from, to, amount);
     }
 
     function _transfer(address from, address to, uint256 amount) internal override {
