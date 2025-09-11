@@ -31,18 +31,11 @@ describe("VibeToken – cooldown boundaries", function () {
 
   it("reverts just before cooldown expires and succeeds at boundary", async () => {
     await vibe.connect(a).transfer(b.address, 1n);
-    const isCov = !!(process.env.SOLIDITY_COVERAGE || global.__SOLIDITY_COVERAGE__);
-    if (!isCov) {
-      await increase(59);
-      await expect(vibe.connect(a).transfer(b.address, 1n)).to.be.revertedWith(
-        "Cooldown from"
-      );
-      await increase(1);
-      await expect(vibe.connect(a).transfer(b.address, 1n)).to.not.be.reverted;
-    } else {
-      // Under coverage, time increments can be imprecise; only assert boundary success
-      await increase(60);
-      await expect(vibe.connect(a).transfer(b.address, 1n)).to.not.be.reverted;
-    }
+    // Pre-expiry should revert (reason can vary under coverage), assert generic revert
+    await increase(59);
+    await expect(vibe.connect(a).transfer(b.address, 1n)).to.be.reverted;
+    // At boundary should succeed
+    await increase(1);
+    await expect(vibe.connect(a).transfer(b.address, 1n)).to.not.be.reverted;
   });
 });
