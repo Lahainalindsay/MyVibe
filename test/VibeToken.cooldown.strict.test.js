@@ -35,10 +35,18 @@ describe("VibeToken – STRICT cooldown boundaries (non-coverage)", function () 
   });
 
   it("reverts just before cooldown expires and succeeds at boundary", async () => {
-    await vibe.connect(a).transfer(b.address, 1n);
-    await increase(59);
+    const tx = await vibe.connect(a).transfer(b.address, 1n);
+    const rc = await tx.wait();
+    const blk = await ethers.provider.getBlock(rc.blockNumber);
+    const t0 = blk.timestamp;
+    const cd = 60;
+
+    // Set next block to t0 + cd - 1 => should revert due to cooldown
+    await ethers.provider.send("evm_setNextBlockTimestamp", [t0 + cd - 1]);
     await expect(vibe.connect(a).transfer(b.address, 1n)).to.be.reverted;
-    await increase(1);
+
+    // Set next block to t0 + cd => should pass at boundary
+    await ethers.provider.send("evm_setNextBlockTimestamp", [t0 + cd]);
     await expect(vibe.connect(a).transfer(b.address, 1n)).to.not.be.reverted;
   });
 });
