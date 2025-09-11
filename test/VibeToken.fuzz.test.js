@@ -7,10 +7,22 @@ describe("VibeToken – randomized transfers (property tests)", function () {
 
   const DEAD = "0x000000000000000000000000000000000000dEaD";
 
+  const A = 1664525n;
+  const C = 1013904223n;
+  const M = 0xffffffffn;
+
   function rnd(max, seed) {
-    // simple deterministic LCG for reproducibility
-    seed.v = (seed.v * 1664525 + 1013904223) % 0xffffffff;
-    return Number(seed.v % BigInt(max));
+    // simple deterministic LCG for reproducibility (number output)
+    const bmax = BigInt(max);
+    seed.v = (seed.v * A + C) % M;
+    return Number(seed.v % bmax);
+  }
+
+  function rndBig(max, seed) {
+    // BigInt random in [0, max)
+    if (max <= 1n) return 0n;
+    seed.v = (seed.v * A + C) % M;
+    return seed.v % max;
   }
 
   async function sumKnownBalances(contract, addrs) {
@@ -72,7 +84,7 @@ describe("VibeToken – randomized transfers (property tests)", function () {
 
       // amount between 1 and ~10% of balance
       const max = bal / 10n || 1n;
-      const amt = 1n + BigInt(rnd(Number(max), seed));
+      const amt = 1n + rndBig(max, seed);
 
       const exSender = rnd(2, seed) === 1;
       const exReceiver = rnd(2, seed) === 1;
@@ -123,4 +135,3 @@ describe("VibeToken – randomized transfers (property tests)", function () {
     }
   });
 });
-
