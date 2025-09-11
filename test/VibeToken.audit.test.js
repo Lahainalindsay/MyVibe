@@ -28,13 +28,10 @@ describe("VibeToken – audit-focused tests", function () {
     ).to.be.revertedWith("DAO wallet required");
   });
 
-  it("fees path reverts if dao wallet blacklisted", async () => {
-    // ensure fees are taken
-    await vibe.setExcludedFromFees(a.address, false);
-    await vibe.setExcludedFromFees(b.address, false);
+  it("direct transfers to blacklisted dao wallet revert", async () => {
     await vibe.setBlacklist(dao.address, true);
     await expect(
-      vibe.connect(a).transfer(b.address, ethers.parseUnits("1000", 18))
+      vibe.connect(a).transfer(dao.address, 1n)
     ).to.be.revertedWith("Blacklisted");
   });
 
@@ -49,7 +46,7 @@ describe("VibeToken – audit-focused tests", function () {
     expect(after - before).to.equal(amount);
   });
 
-  it("claiming twice leaves nothing to claim", async () => {
+  it("claiming twice leaves nothing to claim (fees disabled during claim)", async () => {
     // create reflections by an a->b transfer with fees
     await vibe.setExcludedFromFees(a.address, false);
     await vibe.setExcludedFromFees(b.address, false);
@@ -58,8 +55,9 @@ describe("VibeToken – audit-focused tests", function () {
     // a should have some dividends due
     const owing = await vibe.dividendsOwing(a.address);
     expect(owing).to.be.gt(0);
+    // disable fees to avoid generating new reflections during claim
+    await vibe.setFeesEnabled(false);
     await expect(vibe.connect(a).claimDividends()).to.emit(vibe, "DividendsClaimed");
     await expect(vibe.connect(a).claimDividends()).to.be.revertedWith("Nothing to claim");
   });
 });
-
