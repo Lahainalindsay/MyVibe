@@ -39,7 +39,7 @@ describe("VibeToken – gas thresholds", function () {
     const amt = ethers.parseUnits("1000", 18);
     const gas = await vibe.connect(a).transfer.estimateGas(b.address, amt);
     // regression budget: normal ~<160k; under coverage instrumentation it's higher
-    const isCov = !!process.env.SOLIDITY_COVERAGE;
+    const isCov = !!(process.env.SOLIDITY_COVERAGE || global.__SOLIDITY_COVERAGE__);
     const cap = isCov ? 600000n : 160000n;
     expect(gas).to.be.lt(cap);
   });
