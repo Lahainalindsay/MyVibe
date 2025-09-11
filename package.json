@@ -5,6 +5,7 @@
   "scripts": {
     "build": "hardhat compile",
     "test": "hardhat test",
+    "test:strict": "hardhat test test/VibeToken.cooldown.strict.test.js",
     "coverage": "hardhat coverage --testfiles 'test/**/*.js'",
     "check:coverage": "node scripts/check-coverage.js --statements 80 --branches 70 --functions 75 --lines 80",
     "deploy:local": "hardhat run scripts/deploy.js",
