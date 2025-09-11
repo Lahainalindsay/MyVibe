@@ -38,6 +38,17 @@ function main() {
     lines: Number(process.env.COV_LINES || args.lines || 80),
   };
 
+  // Optional per-file thresholds via coverage.config.json
+  let perFile = {};
+  const cfgPath = path.join(process.cwd(), 'coverage.config.json');
+  if (fs.existsSync(cfgPath)) {
+    try {
+      perFile = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+    } catch (e) {
+      console.warn('Warning: unable to parse coverage.config.json:', e.message);
+    }
+  }
+
   const summaryPath = path.join(process.cwd(), 'coverage', 'coverage-summary.json');
   if (!fs.existsSync(summaryPath)) {
     console.error(`Coverage summary not found at ${summaryPath}. Did you run \"npm run coverage\"?`);
@@ -66,7 +77,28 @@ function main() {
   } else {
     console.log('Coverage threshold check passed ✔');
   }
+
+  // Per-file checks
+  const fileFailures = [];
+  for (const [file, req] of Object.entries(perFile)) {
+    const entry = summary[file] || summary[(file.startsWith('contracts/') ? file : `contracts/${file}`)];
+    if (!entry) {
+      fileFailures.push(`${file}: not found in coverage summary`);
+      continue;
+    }
+    const s = entry.statements && entry.statements.pct;
+    const b = entry.branches && entry.branches.pct;
+    const f = entry.functions && entry.functions.pct;
+    const l = entry.lines && entry.lines.pct;
+    if (req.statements != null && s < req.statements) fileFailures.push(`${file} statements: ${s}% < ${req.statements}%`);
+    if (req.branches != null && b < req.branches) fileFailures.push(`${file} branches: ${b}% < ${req.branches}%`);
+    if (req.functions != null && f < req.functions) fileFailures.push(`${file} functions: ${f}% < ${req.functions}%`);
+    if (req.lines != null && l < req.lines) fileFailures.push(`${file} lines: ${l}% < ${req.lines}%`);
+  }
+  if (fileFailures.length) {
+    console.error('Per-file coverage check failed:\n - ' + fileFailures.join('\n - '));
+    process.exit(1);
+  }
 }
 
 main();
-
