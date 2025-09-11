@@ -90,6 +90,11 @@ describe("VibeToken – behavior", function () {
     expect(await vibe.reflectRate()).to.equal(100);
   });
 
+  it("setLimits emits and rejects bad limits", async () => {
+    await expect(vibe.setLimits(0, 1n, 0)).to.be.revertedWith("Bad limits");
+    await expect(vibe.setLimits(1n, 1n, 0)).to.emit(vibe, "LimitsUpdated");
+  });
+
   it("skips limits when either side is excludedFromLimits", async () => {
     // trading off, but should still succeed due to exclusion
     await vibe.setExcludedFromLimits(a.address, true);
