@@ -57,7 +57,24 @@ describe("VibeToken – audit-focused tests", function () {
     expect(owing).to.be.gt(0);
     // disable fees to avoid generating new reflections during claim
     await vibe.setFeesEnabled(false);
+    const unclaimedBefore = await vibe.unclaimedDividends();
     await expect(vibe.connect(a).claimDividends()).to.emit(vibe, "DividendsClaimed");
+    const unclaimedAfter = await vibe.unclaimedDividends();
+    expect(unclaimedAfter).to.be.lt(unclaimedBefore);
     await expect(vibe.connect(a).claimDividends()).to.be.revertedWith("Nothing to claim");
+  });
+
+  it("getCirculatingSupply excludes zero, dead and contract balances", async () => {
+    // Move tokens to dead and to contract itself
+    const dead = "0x000000000000000000000000000000000000dEaD";
+    await vibe.transfer(dead, 123n);
+    await vibe.transfer(await vibe.getAddress(), 456n);
+
+    const total = await vibe.totalSupply();
+    const zeroBal = await vibe.balanceOf(ethers.ZeroAddress);
+    const deadBal = await vibe.balanceOf(dead);
+    const selfBal = await vibe.balanceOf(await vibe.getAddress());
+    const expected = total - zeroBal - deadBal - selfBal;
+    expect(await vibe.getCirculatingSupply()).to.equal(expected);
   });
 });
