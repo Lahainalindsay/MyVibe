@@ -81,7 +81,7 @@ describe("VibeToken – coverage targets", function () {
 
     // Re-include and then raise threshold beyond balance to remove again
     await vibe.setExcludedFromFees(a.address, false);
-    await vibe.setMinTokensForDividends(ethers.parseUnits("1_000_001", 18));
+    await vibe.setMinTokensForDividends(ethers.parseUnits("1000001", 18));
     const countAfter = await vibe.getHolderCount();
     expect(countAfter).to.be.lessThanOrEqual(countMid);
   });
@@ -96,4 +96,3 @@ describe("VibeToken – coverage targets", function () {
     );
   });
 });
-
