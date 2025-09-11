@@ -79,9 +79,11 @@ describe("VibeToken – coverage targets", function () {
     const countMid = await vibe.getHolderCount();
     expect(countMid).to.be.lessThanOrEqual(countBefore);
 
-    // Re-include and then raise threshold beyond balance to remove again
+    // Re-include and then raise threshold beyond balance; trigger an update via transfer
     await vibe.setExcludedFromFees(a.address, false);
     await vibe.setMinTokensForDividends(ethers.parseUnits("1000001", 18));
+    // Trigger holder status recalculation for `a` by making a small transfer
+    await vibe.connect(a).transfer(b.address, 1n);
     const countAfter = await vibe.getHolderCount();
     expect(countAfter).to.be.lessThanOrEqual(countMid);
   });
