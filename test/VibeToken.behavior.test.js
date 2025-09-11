@@ -20,6 +20,7 @@ describe("VibeToken – behavior", function () {
     // owner holds total supply; fund accounts
     await vibe.transfer(a.address, ethers.parseUnits("100000", 18));
     await vibe.transfer(b.address, ethers.parseUnits("100000", 18));
+    await vibe.transfer(c.address, ethers.parseUnits("100000", 18));
   });
 
   it("enforces trading toggle when not excluded from limits", async () => {
@@ -68,6 +69,17 @@ describe("VibeToken – behavior", function () {
     );
   });
 
+  it("enforces cooldown for recipient (to)", async () => {
+    await vibe.setTradingEnabled(true);
+    const full = await vibe.TOTAL_SUPPLY();
+    await vibe.setLimits(full, full, 60); // 60s cooldown
+
+    await vibe.connect(a).transfer(b.address, 10n);
+    await expect(vibe.connect(c).transfer(b.address, 1n)).to.be.revertedWith(
+      "Cooldown to"
+    );
+  });
+
   it("updates fee rates and rejects excessive total", async () => {
     await expect(vibe.setFees(600, 300, 200)).to.be.revertedWith(
       "Total fee too high"
@@ -76,6 +88,40 @@ describe("VibeToken – behavior", function () {
     expect(await vibe.burnRate()).to.equal(100);
     expect(await vibe.daoRate()).to.equal(100);
     expect(await vibe.reflectRate()).to.equal(100);
+  });
+
+  it("skips limits when either side is excludedFromLimits", async () => {
+    // trading off, but should still succeed due to exclusion
+    await vibe.setExcludedFromLimits(a.address, true);
+    await expect(vibe.connect(a).transfer(b.address, 1n)).to.not.be.reverted;
+  });
+
+  it("no fee path when fees are disabled", async () => {
+    await vibe.setTradingEnabled(true);
+    const full = await vibe.TOTAL_SUPPLY();
+    await vibe.setLimits(full, full, 0);
+
+    await vibe.setFeesEnabled(false);
+    const amount = ethers.parseUnits("1000", 18);
+    const bBefore = await vibe.balanceOf(b.address);
+    const tx = vibe.connect(a).transfer(b.address, amount);
+    await expect(tx).to.not.emit(vibe, "FeesDistributed");
+    const bAfter = await vibe.balanceOf(b.address);
+    expect(bAfter - bBefore).to.equal(amount);
+  });
+
+  it("excludedFromFees avoids fee collection", async () => {
+    await vibe.setTradingEnabled(true);
+    const full = await vibe.TOTAL_SUPPLY();
+    await vibe.setLimits(full, full, 0);
+
+    await vibe.setExcludedFromFees(a.address, true);
+    const amount = ethers.parseUnits("500", 18);
+    const bBefore = await vibe.balanceOf(b.address);
+    const tx = vibe.connect(a).transfer(b.address, amount);
+    await expect(tx).to.not.emit(vibe, "FeesDistributed");
+    const bAfter = await vibe.balanceOf(b.address);
+    expect(bAfter - bBefore).to.equal(amount);
   });
 
   it("only owner can manage admin actions", async () => {

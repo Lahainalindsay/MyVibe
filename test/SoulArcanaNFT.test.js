@@ -75,6 +75,19 @@ describe("SoulArcanaNFT", function () {
     await expect(soul.connect(user).mintWithVibe(0n)).to.be.revertedWith("Quantity > 0");
   });
 
+  it("refunds excess ETH on mint", async () => {
+    const qty = 2n;
+    const price = await soul.mintPriceETH();
+    const overpay = price * qty + parseEther("0.05");
+
+    const before = await ethers.provider.getBalance(await soul.getAddress());
+    await soul.connect(user).mint(qty, { value: overpay });
+    const after = await ethers.provider.getBalance(await soul.getAddress());
+
+    // Contract balance should only increase by the exact cost, not including overpay
+    expect(after - before).to.equal(price * qty);
+  });
+
   it("reverts if insufficient ETH", async () => {
     await expect(soul.connect(user).mint(2n, { value: 0n })).to.be.revertedWith("Insufficient ETH");
   });
