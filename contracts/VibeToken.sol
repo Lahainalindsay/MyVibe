@@ -195,48 +195,7 @@ contract VibeToken is ERC20, ERC20Pausable, Ownable {
         _updateHolderStatus(to);
     }
 
-    function _transfer(address from, address to, uint256 amount) internal override {
-        require(!isBlacklisted[from] && !isBlacklisted[to], "Blacklisted");
-
-        if (from != address(0) && to != address(0)) {
-            if (!excludedFromLimits[from] && !excludedFromLimits[to]) {
-                require(tradingEnabled, "Trading off");
-                require(amount <= maxTxAmount, "Tx limit");
-                require(balanceOf(to) + amount <= maxWalletAmount, "Wallet cap");
-                if (cooldownTime > 0) {
-                    require(_lastTxTime[from] + cooldownTime <= block.timestamp, "Cooldown from");
-                    require(_lastTxTime[to] + cooldownTime <= block.timestamp, "Cooldown to");
-                    _lastTxTime[from] = block.timestamp;
-                    _lastTxTime[to] = block.timestamp;
-                }
-            }
-        }
-
-        // accrue reflections before balances change
-        if (from != address(0)) _accrue(from);
-        if (to != address(0)) _accrue(to);
-
-        bool takeFee = feesEnabled && !excludedFromFees[from] && !excludedFromFees[to];
-
-        if (takeFee) {
-            uint256 totalFee = (amount * (burnRate + daoRate + reflectRate)) / FEE_DENOMINATOR;
-            uint256 burnAmt = (amount * burnRate) / FEE_DENOMINATOR;
-            uint256 daoAmt = (amount * daoRate) / FEE_DENOMINATOR;
-            uint256 reflectAmt = totalFee - burnAmt - daoAmt;
-
-            if (burnAmt > 0) super._transfer(from, address(0xdead), burnAmt);
-            if (daoAmt > 0) super._transfer(from, daoWallet, daoAmt);
-            if (reflectAmt > 0) { super._transfer(from, address(this), reflectAmt); _distributeReflection(reflectAmt); }
-
-            emit FeesDistributed(burnAmt, daoAmt, reflectAmt);
-            super._transfer(from, to, amount - totalFee);
-        } else {
-            super._transfer(from, to, amount);
-        }
-
-        _updateHolderStatus(from);
-        _updateHolderStatus(to);
-    }
+    // (no _transfer override in OZ v5, logic handled in _update)
 
     function _updateHolderStatus(address account) private {
         if (account == address(0)) return;
