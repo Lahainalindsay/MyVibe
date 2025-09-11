@@ -28,8 +28,8 @@ describe("VibeToken – admin/audit additions", function () {
   it("minTokensForDividends equality qualifies holder", async () => {
     const balA = await vibe.balanceOf(a.address);
     await vibe.setMinTokensForDividends(balA);
-    // Trigger holder status update
-    await vibe.connect(a).transfer(b.address, 1n);
+    // Trigger holder status update without changing balance
+    await vibe.connect(a).transfer(b.address, 0n);
     const count = Number(await vibe.getHolderCount());
     let found = false;
     for (let i = 0; i < count; i++) {
@@ -69,4 +69,3 @@ describe("VibeToken – admin/audit additions", function () {
     await expect(vibe.connect(a).transfer(b.address, 1n)).to.not.be.reverted;
   });
 });
-
