@@ -85,6 +85,17 @@ describe("SoulArcanaNFT – admin & withdraw", function () {
     ).to.not.be.reverted;
   });
 
+  it("mintWithVibe sends VIBE to updated treasury (EOA)", async () => {
+    await soul.connect(owner).setTreasury(treasury.address);
+    const qty = 3n;
+    const cost = (await soul.mintPriceVIBE()) * qty;
+    await vibe.connect(user).approve(await soul.getAddress(), cost);
+    const before = await vibe.balanceOf(treasury.address);
+    await soul.connect(user).mintWithVibe(qty);
+    const after = await vibe.balanceOf(treasury.address);
+    expect(after - before).to.equal(cost);
+  });
+
   it("tokenURI delegates to renderer", async () => {
     const price = await soul.mintPriceETH();
     await soul.connect(user).mint(1n, { value: price });

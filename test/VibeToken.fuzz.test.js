@@ -134,5 +134,17 @@ describe("VibeToken – randomized transfers (property tests)", function () {
       ]);
       expect(sum).to.equal(total);
     }
+
+    // zero-amount transfer should not emit fees and not change balances
+    const bA0 = await vibe.balanceOf(a.address);
+    const bB0 = await vibe.balanceOf(b.address);
+    await expect(vibe.connect(a).transfer(b.address, 0)).to.not.emit(
+      vibe,
+      "FeesDistributed"
+    );
+    const bA1 = await vibe.balanceOf(a.address);
+    const bB1 = await vibe.balanceOf(b.address);
+    expect(bA1).to.equal(bA0);
+    expect(bB1).to.equal(bB0);
   });
 });

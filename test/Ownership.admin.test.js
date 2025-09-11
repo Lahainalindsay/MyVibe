@@ -1,0 +1,65 @@
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
+
+describe("Ownership – admin controls", function () {
+  let deployer, dao, staking, fairLaunch, influencer, newOwner, user;
+  let vibe, soul, renderer;
+
+  beforeEach(async () => {
+    [deployer, dao, staking, fairLaunch, influencer, newOwner, user] =
+      await ethers.getSigners();
+
+    const Vibe = await ethers.getContractFactory("VibeToken");
+    vibe = await Vibe.deploy(
+      dao.address,
+      staking.address,
+      fairLaunch.address,
+      influencer.address
+    );
+
+    const Renderer = await ethers.getContractFactory("SigilArcanaOnChainRenderer");
+    renderer = await Renderer.deploy();
+
+    const Soul = await ethers.getContractFactory("SoulArcanaNFT");
+    soul = await Soul.deploy(
+      await renderer.getAddress(),
+      await vibe.getAddress(),
+      deployer.address
+    );
+  });
+
+  it("transfers VibeToken ownership and enforces onlyOwner", async () => {
+    await vibe.transferOwnership(newOwner.address);
+    await expect(vibe.setFees(0, 0, 0)).to.be.revertedWithCustomError(
+      vibe,
+      "OwnableUnauthorizedAccount"
+    );
+    await expect(vibe.connect(newOwner).setFees(0, 0, 0)).to.not.be.reverted;
+  });
+
+  it("renouncing VibeToken ownership disables admin functions", async () => {
+    await vibe.renounceOwnership();
+    await expect(vibe.setFees(0, 0, 0)).to.be.revertedWithCustomError(
+      vibe,
+      "OwnableUnauthorizedAccount"
+    );
+  });
+
+  it("transfers SoulArcanaNFT ownership and enforces onlyOwner", async () => {
+    await soul.transferOwnership(newOwner.address);
+    await expect(soul.setMaxMintPerTx(10)).to.be.revertedWithCustomError(
+      soul,
+      "OwnableUnauthorizedAccount"
+    );
+    await expect(soul.connect(newOwner).setMaxMintPerTx(10)).to.not.be.reverted;
+  });
+
+  it("renouncing SoulArcanaNFT ownership disables admin functions", async () => {
+    await soul.renounceOwnership();
+    await expect(soul.setMaxMintPerTx(10)).to.be.revertedWithCustomError(
+      soul,
+      "OwnableUnauthorizedAccount"
+    );
+  });
+});
+
