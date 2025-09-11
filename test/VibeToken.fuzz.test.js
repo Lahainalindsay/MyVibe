@@ -104,7 +104,8 @@ describe("VibeToken – randomized transfers (property tests)", function () {
       if (willTakeFee) {
         const burn = (amt * burnRate) / feeDen;
         const daoF = (amt * daoRate) / feeDen;
-        const refF = (amt * reflectRate) / feeDen;
+        const totalFee = (amt * (burnRate + daoRate + reflectRate)) / feeDen;
+        const refF = totalFee - burn - daoF; // match contract's rounding behavior
         await expect(tx)
           .to.emit(vibe, "FeesDistributed")
           .withArgs(burn, daoF, refF);
