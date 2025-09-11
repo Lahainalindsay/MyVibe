@@ -59,11 +59,11 @@ contract VibeToken is ERC20, ERC20Pausable, Ownable {
         address staking,       // kept for constructor parity / allocation mgmt
         address fairLaunch,    // optional distribution wallet
         address influencer    // optional marketing wallet
-    ) ERC20("VibeToken", "VIBE") {
+    ) ERC20("VibeToken", "VIBE") Ownable(msg.sender) {
         require(_daoWallet != address(0), "DAO wallet required");
         daoWallet = _daoWallet;
 
-        // Mint all to deployer (owner is msg.sender in OZ v4)
+        // Mint all to deployer (owner is msg.sender)
         _mint(msg.sender, TOTAL_SUPPLY);
 
         // Defaults: 2%
@@ -150,12 +150,49 @@ contract VibeToken is ERC20, ERC20Pausable, Ownable {
         return totalSupply() - balanceOf(address(0)) - balanceOf(address(0xdead)) - balanceOf(address(this));
     }
 
-    // --- Transfer hooks ---
-    function _beforeTokenTransfer(address from, address to, uint256 amount)
-        internal
-        override(ERC20, ERC20Pausable)
-    {
-        super._beforeTokenTransfer(from, to, amount);
+    // --- Transfer logic (OZ v5: override _update) ---
+    function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Pausable) {
+        require(!isBlacklisted[from] && !isBlacklisted[to], "Blacklisted");
+
+        // Apply limits only on normal transfers (exclude mint/burn)
+        if (from != address(0) && to != address(0)) {
+            if (!excludedFromLimits[from] && !excludedFromLimits[to]) {
+                require(tradingEnabled, "Trading off");
+                require(value <= maxTxAmount, "Tx limit");
+                require(balanceOf(to) + value <= maxWalletAmount, "Wallet cap");
+                if (cooldownTime > 0) {
+                    require(_lastTxTime[from] + cooldownTime <= block.timestamp, "Cooldown from");
+                    require(_lastTxTime[to] + cooldownTime <= block.timestamp, "Cooldown to");
+                    _lastTxTime[from] = block.timestamp;
+                    _lastTxTime[to] = block.timestamp;
+                }
+            }
+        }
+
+        // accrue reflections before balances change
+        if (from != address(0)) _accrue(from);
+        if (to != address(0)) _accrue(to);
+
+        bool takeFee = feesEnabled && from != address(0) && to != address(0) && !excludedFromFees[from] && !excludedFromFees[to];
+
+        if (takeFee) {
+            uint256 totalFee = (value * (burnRate + daoRate + reflectRate)) / FEE_DENOMINATOR;
+            uint256 burnAmt = (value * burnRate) / FEE_DENOMINATOR;
+            uint256 daoAmt = (value * daoRate) / FEE_DENOMINATOR;
+            uint256 reflectAmt = totalFee - burnAmt - daoAmt;
+
+            if (burnAmt > 0) super._update(from, address(0xdead), burnAmt);
+            if (daoAmt > 0) super._update(from, daoWallet, daoAmt);
+            if (reflectAmt > 0) { super._update(from, address(this), reflectAmt); _distributeReflection(reflectAmt); }
+
+            emit FeesDistributed(burnAmt, daoAmt, reflectAmt);
+            super._update(from, to, value - totalFee);
+        } else {
+            super._update(from, to, value);
+        }
+
+        _updateHolderStatus(from);
+        _updateHolderStatus(to);
     }
 
     function _transfer(address from, address to, uint256 amount) internal override {

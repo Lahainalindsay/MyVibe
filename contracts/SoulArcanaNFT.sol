@@ -33,13 +33,12 @@ contract SoulArcanaNFT is ERC721Enumerable, Ownable {
 
     constructor(address _renderer, address _vibe, address _owner)
         ERC721("SoulArcanaNFT", "ARCANA")
+        Ownable(_owner)
     {
         require(_renderer != address(0) && _vibe != address(0), "Bad address");
         renderer = IRenderer(_renderer);
         vibe = IERC20(_vibe);
         treasury = address(this);
-        require(_owner != address(0), "Owner required");
-        _transferOwnership(_owner);
     }
 
     // --- Minting ---
