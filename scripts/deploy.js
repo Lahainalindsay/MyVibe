@@ -1,19 +1,29 @@
 /* eslint-disable no-console */
 const hre = require("hardhat");
 
+function env(name) {
+  const v = process.env[name];
+  return v && v.trim().length ? v.trim() : undefined;
+}
+
 async function main() {
-  const [deployer, dao, staking, fairLaunch, influencer] = await hre.ethers.getSigners();
-  console.log("🚀 Deployer:", deployer.address);
+  const signers = await hre.ethers.getSigners();
+  const deployer = signers[0];
+  if (!deployer) throw new Error("No deployer signer available. Check PRIVATE_KEY in .env");
+
+  const deployerAddr = await deployer.getAddress();
+  console.log("🚀 Deployer:", deployerAddr);
+
+  // Resolve auxiliary addresses: prefer env vars; fallback to additional signers; else deployer
+  const dao = env("DAO_ADDRESS") || (signers[1] && (await signers[1].getAddress())) || deployerAddr;
+  const staking = env("STAKING_ADDRESS") || (signers[2] && (await signers[2].getAddress())) || deployerAddr;
+  const fairLaunch = env("FAIRLAUNCH_ADDRESS") || (signers[3] && (await signers[3].getAddress())) || deployerAddr;
+  const influencer = env("INFLUENCER_ADDRESS") || (signers[4] && (await signers[4].getAddress())) || deployerAddr;
 
   const VibeToken = await hre.ethers.getContractFactory("VibeToken");
-  const vibe = await VibeToken.deploy(
-    dao.address,
-    staking.address,
-    fairLaunch.address,
-    influencer.address
-  );
-  await vibe.deployed();
-  const vibeAddr = vibe.address;
+  const vibe = await VibeToken.deploy(dao, staking, fairLaunch, influencer);
+  await vibe.deployed?.();
+  const vibeAddr = await vibe.getAddress?.() || vibe.address;
   console.log("✅ VibeToken:", vibeAddr);
 
   // Enable trading + loosen limits for testing
@@ -26,14 +36,14 @@ async function main() {
 
   const Renderer = await hre.ethers.getContractFactory("SigilArcanaOnChainRenderer");
   const renderer = await Renderer.deploy();
-  await renderer.deployed();
-  const rendererAddr = renderer.address;
+  await renderer.deployed?.();
+  const rendererAddr = await renderer.getAddress?.() || renderer.address;
   console.log("✅ Renderer:", rendererAddr);
 
   const SoulArcanaNFT = await hre.ethers.getContractFactory("SoulArcanaNFT");
-  const soul = await SoulArcanaNFT.deploy(rendererAddr, vibeAddr, deployer.address);
-  await soul.deployed();
-  const soulAddr = soul.address;
+  const soul = await SoulArcanaNFT.deploy(rendererAddr, vibeAddr, deployerAddr);
+  await soul.deployed?.();
+  const soulAddr = await soul.getAddress?.() || soul.address;
   console.log("✅ SoulArcanaNFT:", soulAddr);
 
   // Exclude NFT from fees/limits
@@ -41,12 +51,12 @@ async function main() {
   await vibe.setExcludedFromLimits(soulAddr, true);
 
   // Set mint prices
-  await soul.setPrices(
-    hre.ethers.parseEther("0.01"),
-    hre.ethers.parseUnits("1000", 18)
-  );
+  await soul.setPrices(hre.ethers.parseEther("0.01"), hre.ethers.parseUnits("1000", 18));
 
-  console.log("🎉 Deployment complete");
+  console.log("\n🎉 Deployment complete");
+  console.log("VIBE_ADDRESS=", vibeAddr);
+  console.log("RENDERER_ADDRESS=", rendererAddr);
+  console.log("SOUL_ADDRESS=", soulAddr);
 }
 
 main().catch((e) => {
