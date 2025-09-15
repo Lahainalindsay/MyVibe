@@ -165,6 +165,19 @@ Coding style conventions:
 
 ## Security Notes
 
+---
+
+## Deployments
+
+Track deployed addresses here for quick reference. Replace placeholders with your actual addresses after deployment.
+
+- Sepolia
+  - `VIBE_ADDRESS`: 0xYourVibeToken...
+  - `RENDERER_ADDRESS`: 0xYourRenderer...
+  - `SOUL_ADDRESS`: 0xYourSoulArcana...
+
+After deployment, update `.env` with these values so scripts like `npm run verify` and your tooling can reference them.
+
 - Never commit secrets. Keep `.env` out of version control.
 - Validate fee/limit settings before enabling trading on main networks.
 - Review addresses passed to constructors carefully before deploying.
@@ -180,4 +193,3 @@ MIT — see SPDX identifiers in the Solidity sources.
 ## Acknowledgments
 
 - Built with Hardhat, OpenZeppelin Contracts, and solidity‑coverage.
-
