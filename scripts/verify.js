@@ -6,6 +6,8 @@ async function main() {
   const soul = process.env.SOUL_ADDRESS;
 
   if (vibe) {
+    // VibeToken constructor takes FOUR addresses:
+    // constructor(address _daoWallet, address staking, address fairLaunch, address influencer)
     await hre.run("verify:verify", {
       address: vibe,
       constructorArguments: [
@@ -13,7 +15,6 @@ async function main() {
         process.env.STAKING_ADDRESS,
         process.env.FAIRLAUNCH_ADDRESS,
         process.env.INFLUENCER_ADDRESS,
-        process.env.DEPLOYER_ADDRESS,
       ],
     });
   }
