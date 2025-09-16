@@ -10,7 +10,8 @@
     "check:coverage": "node scripts/check-coverage.js --statements 80 --branches 70 --functions 75 --lines 80",
     "deploy:local": "hardhat run scripts/deploy.js",
     "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
-    "verify": "hardhat run scripts/verify.js --network sepolia"
+    "verify": "hardhat run scripts/verify.js --network sepolia",
+    "interact:sepolia": "hardhat run scripts/interact.js --network sepolia"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
