@@ -154,6 +154,12 @@ Coding style conventions:
 
 ---
 
+## Frontend
+
+- See `docs/AGENT_FRONTEND_PLAYBOOK.md` for a step‑by‑step agent script to build and deploy a Next.js frontend (wallet connect, mint flows, gallery, admin ops) and to prepare social accounts and launch content.
+
+---
+
 ## Troubleshooting
 
 - Missing env vars: Sepolia deploys require `SEPOLIA_RPC_URL` and `PRIVATE_KEY`. Etherscan verification requires `ETHERSCAN_API_KEY` and constructor args.
