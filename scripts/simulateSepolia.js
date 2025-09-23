@@ -57,7 +57,7 @@ async function main() {
   if (wallet2) console.log("Wallet2:", w2Addr);
   if (wallet3) console.log("Wallet3:", w3Addr);
   console.log("VibeToken:", vibeAddr);
-  if (soulAddr) console.log("NFT:", soulAddr, wyvAddr ? "(WYV)" : "(SoulArcana)");
+  if (soulAddr) console.log("NFT:", soulAddr, wyvAddr ? "(VYX)" : "(SoulArcana)");
   if (stakingAddr) console.log("Staking address (for approve):", stakingAddr);
 
   const vibe = await hre.ethers.getContractAt("VibeToken", vibeAddr, primary);

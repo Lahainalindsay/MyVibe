@@ -2,7 +2,7 @@
 
 # 🪙 Vibe Project
 
-ERC‑20 token (VibeToken), ERC‑721 NFT (SoulArcanaNFT), and an on‑chain SVG renderer (SigilArcanaOnChainRenderer) built with Hardhat. This repo includes contracts, a thorough test suite, and scripts to deploy and verify on Sepolia.
+ERC‑20 token (VibeToken), ERC‑721 NFT (WhatsYourVibeNFT, ticker VYX), and an on‑chain SVG renderer (SigilArcanaOnChainRenderer) built with Hardhat. This repo includes contracts, a thorough test suite, and scripts to deploy and verify on Sepolia.
 
 </div>
 
@@ -180,7 +180,7 @@ Track deployed addresses here for quick reference. Replace placeholders with you
 - Sepolia
   - `VIBE_ADDRESS`: 0x65b3265Ae471c629C5482e517d4d31385Af337E7
   - `RENDERER_ADDRESS`: 0x6365219C4E37bbAeE8b566ABF0704b4034d20e66
-- `WYV_ADDRESS`: 0x224A325adB0B1d5332fE88a035eEf1BCD8607Bfb
+- `WYV_ADDRESS` (WhatsYourVibeNFT with ticker VYX): 0x224A325adB0B1d5332fE88a035eEf1BCD8607Bfb
 
 After deployment, update `.env` with these values so scripts like `npm run verify` and your tooling can reference them.
 

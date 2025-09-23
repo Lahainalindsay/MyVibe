@@ -46,7 +46,7 @@ async function main() {
   console.log("Network:", hre.network.name);
   console.log("From:", from);
   console.log("VibeToken:", vibeAddr);
-  console.log("NFT:", soulAddr, wyvAddr ? "(WYV)" : "(SoulArcana)");
+  console.log("NFT:", soulAddr, wyvAddr ? "(VYX)" : "(SoulArcana)");
 
   const vibe = await hre.ethers.getContractAt("VibeToken", vibeAddr, signer);
   const soul = await hre.ethers.getContractAt(wyvAddr ? "WhatsYourVibeNFT" : "SoulArcanaNFT", soulAddr, signer);

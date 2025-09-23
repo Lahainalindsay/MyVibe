@@ -39,7 +39,7 @@ contract WhatsYourVibeNFT is ERC721Enumerable, Ownable {
     event Revealed(bool revealed);
 
     constructor(address _renderer, address _vibe, address _owner)
-        ERC721("WhatsYourVibe", "WYV")
+        ERC721("WhatsYourVibe", "VYX")
         Ownable(_owner)
     {
         require(_renderer != address(0) && _vibe != address(0), "Bad address");
@@ -175,4 +175,3 @@ contract WhatsYourVibeNFT is ERC721Enumerable, Ownable {
         return string.concat("data:image/svg+xml;base64,", Base64.encode(bytes(svg)));
     }
 }
-

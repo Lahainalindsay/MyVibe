@@ -16,7 +16,7 @@ async function main() {
   const from = await signer.getAddress();
   console.log("Network:", hre.network.name);
   console.log("From:", from);
-  console.log("NFT:", soulAddr, wyv ? "(WYV)" : "(SoulArcana)");
+  console.log("NFT:", soulAddr, wyv ? "(VYX)" : "(SoulArcana)");
 
   const soul = await hre.ethers.getContractAt(wyv ? "WhatsYourVibeNFT" : "SoulArcanaNFT", soulAddr, signer);
 
