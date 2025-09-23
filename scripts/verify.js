@@ -3,7 +3,7 @@ const hre = require("hardhat");
 async function main() {
   const vibe = process.env.VIBE_ADDRESS;
   const renderer = process.env.RENDERER_ADDRESS;
-  const soul = process.env.SOUL_ADDRESS;
+  const soul = process.env.WYV_ADDRESS || process.env.SOUL_ADDRESS;
 
   // Derive deployer address to use as a sensible default for constructor args
   const [deployer] = await hre.ethers.getSigners();
@@ -43,10 +43,10 @@ async function main() {
   if (soul) {
     const owner = process.env.NFT_OWNER_ADDRESS || deployerAddress;
     if (!process.env.RENDERER_ADDRESS || !process.env.VIBE_ADDRESS || !owner) {
-      throw new Error("Missing constructor args for SoulArcanaNFT. Provide RENDERER_ADDRESS, VIBE_ADDRESS, and NFT_OWNER_ADDRESS or set DEPLOYER_ADDRESS/PRIVATE_KEY.");
+      throw new Error("Missing constructor args for WhatsYourVibeNFT. Provide RENDERER_ADDRESS, VIBE_ADDRESS, and NFT_OWNER_ADDRESS or set DEPLOYER_ADDRESS/PRIVATE_KEY.");
     }
 
-    console.log("Verifying SoulArcanaNFT with args:", [process.env.RENDERER_ADDRESS, process.env.VIBE_ADDRESS, owner]);
+    console.log("Verifying WhatsYourVibeNFT with args:", [process.env.RENDERER_ADDRESS, process.env.VIBE_ADDRESS, owner]);
     await hre.run("verify:verify", {
       address: soul,
       constructorArguments: [
@@ -56,7 +56,7 @@ async function main() {
       ],
     });
   } else {
-    console.log("SOUL_ADDRESS not set; skipping SoulArcanaNFT verification");
+    console.log("WYV_ADDRESS/SOUL_ADDRESS not set; skipping WhatsYourVibeNFT verification");
   }
 }
 

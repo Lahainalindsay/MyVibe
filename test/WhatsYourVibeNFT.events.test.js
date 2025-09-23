@@ -2,7 +2,7 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { parseUnits, parseEther } = ethers;
 
-describe("SoulArcanaNFT – events", function () {
+describe("WhatsYourVibeNFT – events", function () {
   let deployer, dao, staking, fairLaunch, influencer, owner, user, treasury;
   let vibe, renderer, soul;
 
@@ -24,7 +24,7 @@ describe("SoulArcanaNFT – events", function () {
     const Renderer = await ethers.getContractFactory("SigilArcanaOnChainRenderer");
     renderer = await Renderer.deploy();
 
-    const Soul = await ethers.getContractFactory("SoulArcanaNFT");
+    const Soul = await ethers.getContractFactory("WhatsYourVibeNFT");
     soul = await Soul.deploy(
       await renderer.getAddress(),
       await vibe.getAddress(),
@@ -54,4 +54,3 @@ describe("SoulArcanaNFT – events", function () {
     ).to.be.revertedWith("Zero");
   });
 });
-

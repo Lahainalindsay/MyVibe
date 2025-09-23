@@ -2,7 +2,7 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { parseUnits, parseEther } = ethers;
 
-describe("SoulArcanaNFT – arcana properties", function () {
+describe("WhatsYourVibeNFT – arcana properties", function () {
   let deployer, dao, staking, fairLaunch, influencer, owner, user;
   let vibe, renderer, soul;
 
@@ -24,7 +24,7 @@ describe("SoulArcanaNFT – arcana properties", function () {
     const Renderer = await ethers.getContractFactory("SigilArcanaOnChainRenderer");
     renderer = await Renderer.deploy();
 
-    const Soul = await ethers.getContractFactory("SoulArcanaNFT");
+    const Soul = await ethers.getContractFactory("WhatsYourVibeNFT");
     soul = await Soul.deploy(
       await renderer.getAddress(),
       await vibe.getAddress(),
@@ -32,6 +32,7 @@ describe("SoulArcanaNFT – arcana properties", function () {
     );
 
     await soul.connect(owner).setPrices(parseEther("0.01"), parseUnits("1000", 18));
+    await soul.connect(owner).setRevealed(true);
   });
 
   it("arcana value is within expected range [0,10000)", async () => {
@@ -44,4 +45,3 @@ describe("SoulArcanaNFT – arcana properties", function () {
     }
   });
 });
-

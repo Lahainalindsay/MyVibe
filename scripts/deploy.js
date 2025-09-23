@@ -40,11 +40,11 @@ async function main() {
   const rendererAddr = await renderer.getAddress?.() || renderer.address;
   console.log("✅ Renderer:", rendererAddr);
 
-  const SoulArcanaNFT = await hre.ethers.getContractFactory("SoulArcanaNFT");
-  const soul = await SoulArcanaNFT.deploy(rendererAddr, vibeAddr, deployerAddr);
+  const WhatsYourVibeNFT = await hre.ethers.getContractFactory("WhatsYourVibeNFT");
+  const soul = await WhatsYourVibeNFT.deploy(rendererAddr, vibeAddr, deployerAddr);
   await soul.deployed?.();
   const soulAddr = await soul.getAddress?.() || soul.address;
-  console.log("✅ SoulArcanaNFT:", soulAddr);
+  console.log("✅ WhatsYourVibeNFT:", soulAddr);
 
   // Exclude NFT from fees/limits
   await vibe.setExcludedFromFees(soulAddr, true);
@@ -56,7 +56,7 @@ async function main() {
   console.log("\n🎉 Deployment complete");
   console.log("VIBE_ADDRESS=", vibeAddr);
   console.log("RENDERER_ADDRESS=", rendererAddr);
-  console.log("SOUL_ADDRESS=", soulAddr);
+  console.log("WYV_ADDRESS=", soulAddr);
 }
 
 main().catch((e) => {

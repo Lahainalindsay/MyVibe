@@ -37,7 +37,8 @@ async function main() {
   const from = await signer.getAddress();
 
   const vibeAddr = process.env.VIBE_ADDRESS;
-  const soulAddr = process.env.SOUL_ADDRESS;
+  const wyvAddr = process.env.WYV_ADDRESS;
+  const soulAddr = wyvAddr || process.env.SOUL_ADDRESS;
   if (!vibeAddr || !soulAddr) {
     throw new Error("Missing VIBE_ADDRESS or SOUL_ADDRESS in environment.");
   }
@@ -45,10 +46,10 @@ async function main() {
   console.log("Network:", hre.network.name);
   console.log("From:", from);
   console.log("VibeToken:", vibeAddr);
-  console.log("SoulArcanaNFT:", soulAddr);
+  console.log("NFT:", soulAddr, wyvAddr ? "(WYV)" : "(SoulArcana)");
 
   const vibe = await hre.ethers.getContractAt("VibeToken", vibeAddr, signer);
-  const soul = await hre.ethers.getContractAt("SoulArcanaNFT", soulAddr, signer);
+  const soul = await hre.ethers.getContractAt(wyvAddr ? "WhatsYourVibeNFT" : "SoulArcanaNFT", soulAddr, signer);
 
   // ----- Read token basics -----
   const [name, symbol] = await Promise.all([vibe.name(), vibe.symbol()]);
@@ -147,4 +148,3 @@ main().catch((e) => {
   console.error(e);
   process.exitCode = 1;
 });
-

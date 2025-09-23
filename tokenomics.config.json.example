@@ -1,0 +1,49 @@
+{
+  "totalSupply": "1000000000",
+  "decimals": 18,
+  "allocations": [
+    {
+      "name": "Treasury/DAO",
+      "percent": 20,
+      "beneficiary": "0x000000000000000000000000000000000000dEaD",
+      "vesting": { "tgePercent": 0, "cliffMonths": 0, "durationMonths": 0 }
+    },
+    {
+      "name": "Staking Rewards",
+      "percent": 25,
+      "beneficiary": "0x0000000000000000000000000000000000000001",
+      "vesting": { "tgePercent": 0, "cliffMonths": 0, "durationMonths": 36 }
+    },
+    {
+      "name": "Liquidity",
+      "percent": 15,
+      "beneficiary": "0x0000000000000000000000000000000000000002",
+      "vesting": { "tgePercent": 100, "cliffMonths": 0, "durationMonths": 0 }
+    },
+    {
+      "name": "Team",
+      "percent": 15,
+      "beneficiary": "0x0000000000000000000000000000000000000003",
+      "vesting": { "tgePercent": 0, "cliffMonths": 12, "durationMonths": 24 }
+    },
+    {
+      "name": "Advisors",
+      "percent": 5,
+      "beneficiary": "0x0000000000000000000000000000000000000004",
+      "vesting": { "tgePercent": 0, "cliffMonths": 6, "durationMonths": 18 }
+    },
+    {
+      "name": "Marketing",
+      "percent": 10,
+      "beneficiary": "0x0000000000000000000000000000000000000005",
+      "vesting": { "tgePercent": 10, "cliffMonths": 0, "durationMonths": 12 }
+    },
+    {
+      "name": "Airdrop/Community",
+      "percent": 10,
+      "beneficiary": "0x0000000000000000000000000000000000000006",
+      "vesting": { "tgePercent": 100, "cliffMonths": 0, "durationMonths": 0 }
+    }
+  ]
+}
+

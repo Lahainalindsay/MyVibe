@@ -2,7 +2,7 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { parseUnits, parseEther } = ethers;
 
-describe("Integration: Vibe + SoulArcana + Renderer", function () {
+describe("Integration: Vibe + WhatsYourVibe + Renderer", function () {
   it("links contracts and mints via VIBE end-to-end", async () => {
     const [deployer, dao, staking, fairLaunch, influencer, owner, minter] =
       await ethers.getSigners();
@@ -28,12 +28,13 @@ describe("Integration: Vibe + SoulArcana + Renderer", function () {
     );
     const renderer = await Renderer.deploy();
 
-    const Soul = await ethers.getContractFactory("SoulArcanaNFT");
+    const Soul = await ethers.getContractFactory("WhatsYourVibeNFT");
     const soul = await Soul.deploy(
       await renderer.getAddress(),
       await vibe.getAddress(),
       owner.address
     );
+    await soul.connect(owner).setRevealed(true);
 
     await soul
       .connect(owner)
@@ -41,6 +42,7 @@ describe("Integration: Vibe + SoulArcana + Renderer", function () {
         parseEther("0.01"),
         parseUnits("1000", 18)
       );
+    await soul.connect(owner).setRevealed(true);
 
     const qty = 3n;
     const price = await soul.mintPriceVIBE();

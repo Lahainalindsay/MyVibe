@@ -73,7 +73,7 @@ Project is organized for clarity and testability:
 
 - `contracts/`
   - `VibeToken.sol` — ERC‑20 with fees, reflections, blacklist, limits, and admin controls.
-  - `SoulArcanaNFT.sol` — ERC‑721 with configurable ETH/VIBE minting and per‑token arcana.
+  - `WhatsYourVibeNFT.sol` — ERC‑721 with pre‑reveal “gift box” placeholder, configurable ETH/VIBE minting, and per‑token arcana revealed via renderer.
   - `SigilArcanaOnChainRenderer.sol` — pure on‑chain SVG/JSON metadata renderer.
 - `test/` — Full Hardhat test suite (Mocha/Chai) covering behavior, admin, events, gas, fuzzing, and integration.
 - `scripts/`
@@ -180,7 +180,7 @@ Track deployed addresses here for quick reference. Replace placeholders with you
 - Sepolia
   - `VIBE_ADDRESS`: 0x65b3265Ae471c629C5482e517d4d31385Af337E7
   - `RENDERER_ADDRESS`: 0x6365219C4E37bbAeE8b566ABF0704b4034d20e66
-  - `SOUL_ADDRESS`: 0x224A325adB0B1d5332fE88a035eEf1BCD8607Bfb
+- `WYV_ADDRESS`: 0x224A325adB0B1d5332fE88a035eEf1BCD8607Bfb
 
 After deployment, update `.env` with these values so scripts like `npm run verify` and your tooling can reference them.
 

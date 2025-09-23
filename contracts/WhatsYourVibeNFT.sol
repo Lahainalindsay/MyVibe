@@ -6,12 +6,13 @@ import {ERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 
 interface IRenderer {
     function tokenURI(uint256 tokenId, uint256 arcana) external view returns (string memory);
 }
 
-contract SoulArcanaNFT is ERC721Enumerable, Ownable {
+contract WhatsYourVibeNFT is ERC721Enumerable, Ownable {
     using Strings for uint256;
 
     IRenderer public renderer;
@@ -24,15 +25,21 @@ contract SoulArcanaNFT is ERC721Enumerable, Ownable {
 
     address public treasury; // default: this contract
 
+    // Reveal / pre‑reveal
+    bool public revealed = false;
+    string public preRevealName = "Vibe Gift Box";
+    string public preRevealDescription = "A sleek gift box with a golden bow. Contents reveal on launch.";
+
     mapping(uint256 => uint256) public tokenArcana;
 
     event Minted(address indexed minter, uint256 indexed tokenId, uint256 arcana, string currency);
     event PricesUpdated(uint256 ethPrice, uint256 vibePrice);
     event TreasuryUpdated(address indexed newTreasury);
     event MaxMintUpdated(uint256 maxMintPerTx);
+    event Revealed(bool revealed);
 
     constructor(address _renderer, address _vibe, address _owner)
-        ERC721("SoulArcanaNFT", "ARCANA")
+        ERC721("WhatsYourVibe", "WYV")
         Ownable(_owner)
     {
         require(_renderer != address(0) && _vibe != address(0), "Bad address");
@@ -64,6 +71,11 @@ contract SoulArcanaNFT is ERC721Enumerable, Ownable {
         require(vibe.transferFrom(msg.sender, treasury, cost), "VIBE transfer failed");
 
         _batchMint(msg.sender, quantity, "VIBE");
+    }
+
+    function airdrop(address to, uint256 quantity) external onlyOwner {
+        require(to != address(0) && quantity > 0, "Bad airdrop");
+        _batchMint(to, quantity, "AIRDROP");
     }
 
     function _batchMint(address to, uint256 quantity, string memory currency) internal {
@@ -99,6 +111,16 @@ contract SoulArcanaNFT is ERC721Enumerable, Ownable {
         emit MaxMintUpdated(_max);
     }
 
+    function setPreRevealCopy(string calldata name_, string calldata description_) external onlyOwner {
+        preRevealName = name_;
+        preRevealDescription = description_;
+    }
+
+    function setRevealed(bool status) external onlyOwner {
+        revealed = status;
+        emit Revealed(status);
+    }
+
     // --- Withdrawals ---
     function withdrawETH(address payable to) external onlyOwner {
         if (to == payable(address(0))) to = payable(owner());
@@ -115,6 +137,42 @@ contract SoulArcanaNFT is ERC721Enumerable, Ownable {
     // --- Metadata ---
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         require(_ownerOf(tokenId) != address(0), "Nonexistent token");
+        if (!revealed) {
+            return _preRevealTokenURI(tokenId);
+        }
         return renderer.tokenURI(tokenId, tokenArcana[tokenId]);
     }
+
+    function _preRevealTokenURI(uint256 tokenId) internal view returns (string memory) {
+        string memory name_ = string.concat(preRevealName, " #", tokenId.toString());
+        string memory image = _giftBoxImage();
+        bytes memory json = abi.encodePacked(
+            '{"name":"', name_,
+            '","description":"', preRevealDescription,
+            '","attributes":[{"trait_type":"State","value":"Sealed"}],',
+            '"image":"', image, '"}'
+        );
+        return string.concat("data:application/json;base64,", Base64.encode(json));
+    }
+
+    function _giftBoxImage() internal pure returns (string memory) {
+        // Minimal high‑end gift box SVG with a golden bow
+        string memory svg = string.concat(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">',
+            '<defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1">',
+            '<stop offset="0%" stop-color="#0f0f13"/><stop offset="100%" stop-color="#23232b"/></linearGradient>',
+            '<linearGradient id="gold" x1="0" x2="1" y1="0" y2="1">',
+            '<stop offset="0%" stop-color="#f4e7b9"/><stop offset="100%" stop-color="#d4af37"/></linearGradient></defs>',
+            '<rect width="512" height="512" fill="url(#g)"/>',
+            '<rect x="96" y="120" width="320" height="272" rx="24" fill="#14141a" stroke="#2a2a34" stroke-width="4"/>',
+            '<rect x="96" y="120" width="320" height="42" fill="url(#gold)"/>',
+            '<rect x="240" y="120" width="32" height="272" fill="url(#gold)"/>',
+            '<circle cx="256" cy="140" r="32" fill="url(#gold)"/>',
+            '<path d="M256 140 c -26 -18 -54 -22 -75 0 c 21 12 33 26 38 44 c 7 -18 20 -32 37 -44 z" fill="#f6e8c3" opacity="0.5"/>',
+            '<path d="M256 140 c 26 -18 54 -22 75 0 c -21 12 -33 26 -38 44 c -7 -18 -20 -32 -37 -44 z" fill="#f6e8c3" opacity="0.5"/>',
+            '</svg>'
+        );
+        return string.concat("data:image/svg+xml;base64,", Base64.encode(bytes(svg)));
+    }
 }
+

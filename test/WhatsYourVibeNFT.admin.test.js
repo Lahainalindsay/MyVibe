@@ -2,7 +2,7 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { parseUnits, parseEther } = ethers;
 
-describe("SoulArcanaNFT – admin & withdraw", function () {
+describe("WhatsYourVibeNFT – admin & withdraw", function () {
   let deployer, dao, staking, fairLaunch, influencer, owner, user, treasury;
   let vibe, renderer, soul;
 
@@ -28,7 +28,7 @@ describe("SoulArcanaNFT – admin & withdraw", function () {
     );
     renderer = await Renderer.deploy();
 
-    const Soul = await ethers.getContractFactory("SoulArcanaNFT");
+    const Soul = await ethers.getContractFactory("WhatsYourVibeNFT");
     soul = await Soul.deploy(
       await renderer.getAddress(),
       await vibe.getAddress(),
@@ -96,11 +96,16 @@ describe("SoulArcanaNFT – admin & withdraw", function () {
     expect(after - before).to.equal(cost);
   });
 
-  it("tokenURI delegates to renderer", async () => {
+  it("pre-reveal shows gift box, then reveals to renderer", async () => {
     const price = await soul.mintPriceETH();
     await soul.connect(user).mint(1n, { value: price });
-    const uri = await soul.tokenURI(0);
-    expect(uri.startsWith("data:application/json;base64,")).to.be.true;
+    const pre = await soul.tokenURI(0);
+    expect(pre.startsWith("data:application/json;base64,")).to.be.true;
+    // Reveal and expect a (different) tokenURI based on renderer
+    await soul.connect(owner).setRevealed(true);
+    const post = await soul.tokenURI(0);
+    expect(post.startsWith("data:application/json;base64,")).to.be.true;
+    expect(post).to.not.equal(pre);
   });
 
   it("reverts tokenURI for nonexistent token", async () => {

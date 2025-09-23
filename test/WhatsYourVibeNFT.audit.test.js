@@ -2,7 +2,7 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { parseUnits, parseEther } = ethers;
 
-describe("SoulArcanaNFT – audit-focused tests", function () {
+describe("WhatsYourVibeNFT – audit-focused tests", function () {
   let deployer, dao, staking, fairLaunch, influencer, owner, user;
   let vibe, renderer, soul;
 
@@ -24,7 +24,7 @@ describe("SoulArcanaNFT – audit-focused tests", function () {
     const Renderer = await ethers.getContractFactory("SigilArcanaOnChainRenderer");
     renderer = await Renderer.deploy();
 
-    const Soul = await ethers.getContractFactory("SoulArcanaNFT");
+    const Soul = await ethers.getContractFactory("WhatsYourVibeNFT");
     soul = await Soul.deploy(
       await renderer.getAddress(),
       await vibe.getAddress(),
@@ -52,4 +52,3 @@ describe("SoulArcanaNFT – audit-focused tests", function () {
     );
   });
 });
-

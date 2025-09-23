@@ -20,7 +20,7 @@ describe("Ownership – admin controls", function () {
     const Renderer = await ethers.getContractFactory("SigilArcanaOnChainRenderer");
     renderer = await Renderer.deploy();
 
-    const Soul = await ethers.getContractFactory("SoulArcanaNFT");
+    const Soul = await ethers.getContractFactory("WhatsYourVibeNFT");
     soul = await Soul.deploy(
       await renderer.getAddress(),
       await vibe.getAddress(),
@@ -45,7 +45,7 @@ describe("Ownership – admin controls", function () {
     );
   });
 
-  it("transfers SoulArcanaNFT ownership and enforces onlyOwner", async () => {
+  it("transfers WhatsYourVibeNFT ownership and enforces onlyOwner", async () => {
     await soul.transferOwnership(newOwner.address);
     await expect(soul.setMaxMintPerTx(10)).to.be.revertedWithCustomError(
       soul,
@@ -54,7 +54,7 @@ describe("Ownership – admin controls", function () {
     await expect(soul.connect(newOwner).setMaxMintPerTx(10)).to.not.be.reverted;
   });
 
-  it("renouncing SoulArcanaNFT ownership disables admin functions", async () => {
+  it("renouncing WhatsYourVibeNFT ownership disables admin functions", async () => {
     await soul.renounceOwnership();
     await expect(soul.setMaxMintPerTx(10)).to.be.revertedWithCustomError(
       soul,
@@ -62,4 +62,3 @@ describe("Ownership – admin controls", function () {
     );
   });
 });
-
