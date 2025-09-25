@@ -3,7 +3,7 @@ const hre = require("hardhat");
 async function main() {
   const vibe = process.env.VIBE_ADDRESS;
   const renderer = process.env.RENDERER_ADDRESS;
-  const soul = process.env.WYV_ADDRESS || process.env.SOUL_ADDRESS;
+  const soul = process.env.VYX_ADDRESS || process.env.WYV_ADDRESS || process.env.SOUL_ADDRESS;
 
   // Derive deployer address to use as a sensible default for constructor args
   const [deployer] = await hre.ethers.getSigners();
@@ -56,7 +56,7 @@ async function main() {
       ],
     });
   } else {
-    console.log("WYV_ADDRESS/SOUL_ADDRESS not set; skipping WhatsYourVibeNFT verification");
+    console.log("VYX_ADDRESS/WYV_ADDRESS/SOUL_ADDRESS not set; skipping WhatsYourVibeNFT verification");
   }
 }
 

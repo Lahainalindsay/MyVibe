@@ -7,18 +7,19 @@ function env(name, def) {
 }
 
 async function main() {
+  const vyx = env("VYX_ADDRESS");
   const wyv = env("WYV_ADDRESS");
-  const soulAddr = wyv || env("SOUL_ADDRESS");
-  if (!soulAddr) throw new Error("WYV_ADDRESS or SOUL_ADDRESS not set in environment");
+  const soulAddr = vyx || wyv || env("SOUL_ADDRESS");
+  if (!soulAddr) throw new Error("VYX_ADDRESS/WYV_ADDRESS or SOUL_ADDRESS not set in environment");
 
   const [signer] = await hre.ethers.getSigners();
   if (!signer) throw new Error("No signer available. Check PRIVATE_KEY in .env");
   const from = await signer.getAddress();
   console.log("Network:", hre.network.name);
   console.log("From:", from);
-  console.log("NFT:", soulAddr, wyv ? "(VYX)" : "(SoulArcana)");
+  console.log("NFT:", soulAddr, (vyx || wyv) ? "(VYX)" : "(SoulArcana)");
 
-  const soul = await hre.ethers.getContractAt(wyv ? "WhatsYourVibeNFT" : "SoulArcanaNFT", soulAddr, signer);
+  const soul = await hre.ethers.getContractAt((vyx || wyv) ? "WhatsYourVibeNFT" : "SoulArcanaNFT", soulAddr, signer);
 
   // Set extremely high prices to effectively pause public mint
   const ethPrice = env("HOLD_ETH_PRICE", "1000"); // in ETH

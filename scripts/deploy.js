@@ -56,7 +56,7 @@ async function main() {
   console.log("\n🎉 Deployment complete");
   console.log("VIBE_ADDRESS=", vibeAddr);
   console.log("RENDERER_ADDRESS=", rendererAddr);
-  console.log("WYV_ADDRESS=", soulAddr);
+  console.log("VYX_ADDRESS=", soulAddr);
 }
 
 main().catch((e) => {

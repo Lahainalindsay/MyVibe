@@ -9,8 +9,9 @@ function env(name, fallback) {
 
 async function main() {
   const vibeAddress = env("VIBE_ADDRESS");
+  const vyxAddress = env("VYX_ADDRESS");
   const wyvAddress = env("WYV_ADDRESS");
-  const soulAddress = wyvAddress || env("SOUL_ADDRESS");
+  const soulAddress = vyxAddress || wyvAddress || env("SOUL_ADDRESS");
   const qtyEnv = env("QTY", "1");
   const qty = BigInt(qtyEnv);
 
@@ -33,7 +34,7 @@ async function main() {
   console.log("QTY:", qty.toString());
 
   const vibe = await hre.ethers.getContractAt("VibeToken", vibeAddress, signer);
-  const soul = await hre.ethers.getContractAt(wyvAddress ? "WhatsYourVibeNFT" : "SoulArcanaNFT", soulAddress, signer);
+  const soul = await hre.ethers.getContractAt((vyxAddress || wyvAddress) ? "WhatsYourVibeNFT" : "SoulArcanaNFT", soulAddress, signer);
 
   const price = await soul.mintPriceVIBE();
   const cost = price * qty;

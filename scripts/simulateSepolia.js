@@ -36,8 +36,9 @@ async function main() {
   const vibeAddr = env("VIBE_ADDRESS");
   if (!vibeAddr) throw new Error("VIBE_ADDRESS not set in environment");
 
+  const vyxAddr = env("VYX_ADDRESS");
   const wyvAddr = env("WYV_ADDRESS");
-  const soulAddr = wyvAddr || env("SOUL_ADDRESS");
+  const soulAddr = vyxAddr || wyvAddr || env("SOUL_ADDRESS");
   const stakingAddr = env("STAKING_ADDRESS");
 
   // Signers: primary from Hardhat config (PRIVATE_KEY), plus optional env keys for wallet2/3
@@ -57,11 +58,11 @@ async function main() {
   if (wallet2) console.log("Wallet2:", w2Addr);
   if (wallet3) console.log("Wallet3:", w3Addr);
   console.log("VibeToken:", vibeAddr);
-  if (soulAddr) console.log("NFT:", soulAddr, wyvAddr ? "(VYX)" : "(SoulArcana)");
+  if (soulAddr) console.log("NFT:", soulAddr, (vyxAddr || wyvAddr) ? "(VYX)" : "(SoulArcana)");
   if (stakingAddr) console.log("Staking address (for approve):", stakingAddr);
 
   const vibe = await hre.ethers.getContractAt("VibeToken", vibeAddr, primary);
-  const soul = soulAddr ? await hre.ethers.getContractAt(wyvAddr ? "WhatsYourVibeNFT" : "SoulArcanaNFT", soulAddr, primary) : null;
+  const soul = soulAddr ? await hre.ethers.getContractAt((vyxAddr || wyvAddr) ? "WhatsYourVibeNFT" : "SoulArcanaNFT", soulAddr, primary) : null;
 
   // Optionally enable trading
   if (asBool("SIM_ENABLE_TRADING")) {
