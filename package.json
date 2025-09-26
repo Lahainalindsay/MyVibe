@@ -16,7 +16,8 @@
     "hold:nft": "hardhat run scripts/holdNFT.js --network sepolia",
     "simulate:sepolia": "hardhat run scripts/simulateSepolia.js --network sepolia",
     "liquidity:v2:sepolia": "hardhat run scripts/addLiquidityV2.js --network sepolia",
-    "tokenomics:distribute": "hardhat run scripts/distributeTokenomics.js --network sepolia"
+    "tokenomics:distribute": "hardhat run scripts/distributeTokenomics.js --network sepolia",
+    "wyv:set-pre-mint": "hardhat run scripts/wyvSetPreMint.js --network sepolia"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
