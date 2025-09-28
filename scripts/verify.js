@@ -12,20 +12,22 @@ async function main() {
     || undefined;
 
   if (vibe) {
+    // Inspect VibeToken constructor to match args dynamically
+    const VibeToken = await hre.ethers.getContractFactory("VibeToken");
+    const ctor = VibeToken.interface.fragments.find((f) => f.type === "constructor");
+    const argc = (ctor && ctor.inputs && ctor.inputs.length) || 0;
     const dao = process.env.DAO_ADDRESS || deployerAddress;
     const staking = process.env.STAKING_ADDRESS || deployerAddress;
     const fairLaunch = process.env.FAIRLAUNCH_ADDRESS || deployerAddress;
     const influencer = process.env.INFLUENCER_ADDRESS || deployerAddress;
+    let args = [];
+    if (argc >= 4) args = [dao, staking, fairLaunch, influencer];
+    else if (argc === 2) args = [dao, deployerAddress];
+    else if (argc === 1) args = [dao];
+    else args = [];
 
-    if (!dao || !staking || !fairLaunch || !influencer) {
-      throw new Error("Missing constructor args for VibeToken. Provide DAO_ADDRESS, STAKING_ADDRESS, FAIRLAUNCH_ADDRESS, INFLUENCER_ADDRESS or set DEPLOYER_ADDRESS/PRIVATE_KEY.");
-    }
-
-    console.log("Verifying VibeToken with args:", [dao, staking, fairLaunch, influencer]);
-    await hre.run("verify:verify", {
-      address: vibe,
-      constructorArguments: [dao, staking, fairLaunch, influencer],
-    });
+    console.log("Verifying VibeToken with args:", args);
+    await hre.run("verify:verify", { address: vibe, constructorArguments: args });
   } else {
     console.log("VIBE_ADDRESS not set; skipping VibeToken verification");
   }

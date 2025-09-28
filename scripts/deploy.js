@@ -21,7 +21,19 @@ async function main() {
   const influencer = env("INFLUENCER_ADDRESS") || (signers[4] && (await signers[4].getAddress())) || deployerAddr;
 
   const VibeToken = await hre.ethers.getContractFactory("VibeToken");
-  const vibe = await VibeToken.deploy(dao, staking, fairLaunch, influencer);
+  // Support multiple constructor signatures by inspecting inputs length
+  const ctor = VibeToken.interface.fragments.find((f) => f.type === "constructor");
+  const argc = (ctor && ctor.inputs && ctor.inputs.length) || 0;
+  let vibe;
+  if (argc >= 4) {
+    vibe = await VibeToken.deploy(dao, staking, fairLaunch, influencer);
+  } else if (argc === 2) {
+    vibe = await VibeToken.deploy(dao, deployerAddr);
+  } else if (argc === 1) {
+    vibe = await VibeToken.deploy(dao);
+  } else {
+    vibe = await VibeToken.deploy();
+  }
   await vibe.deployed?.();
   const vibeAddr = await vibe.getAddress?.() || vibe.address;
   console.log("✅ VibeToken:", vibeAddr);

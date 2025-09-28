@@ -9,7 +9,17 @@ describe("VibeToken – AMM liquidity interactions (mock v2)", function () {
     [deployer, dao, staking, fairLaunch, influencer, lp, trader] = await ethers.getSigners();
 
     const Vibe = await ethers.getContractFactory("VibeToken");
-    vibe = await Vibe.deploy(dao.address, staking.address, fairLaunch.address, influencer.address);
+    const ctor = Vibe.interface.fragments.find((f) => f.type === "constructor");
+    const argc = (ctor && ctor.inputs && ctor.inputs.length) || 0;
+    if (argc >= 4) {
+      vibe = await Vibe.deploy(dao.address, staking.address, fairLaunch.address, influencer.address);
+    } else if (argc === 2) {
+      vibe = await Vibe.deploy(dao.address, deployer.address);
+    } else if (argc === 1) {
+      vibe = await Vibe.deploy(dao.address);
+    } else {
+      vibe = await Vibe.deploy();
+    }
 
     // Enable trading and relax limits for AMM flows
     await vibe.setTradingEnabled(true);
@@ -84,4 +94,3 @@ describe("VibeToken – AMM liquidity interactions (mock v2)", function () {
     expect(await dai.balanceOf(trader.address)).to.be.gt(ethers.parseUnits("10000", 18));
   });
 });
-

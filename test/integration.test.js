@@ -8,12 +8,14 @@ describe("Integration: Vibe + WhatsYourVibe + Renderer", function () {
       await ethers.getSigners();
 
     const Vibe = await ethers.getContractFactory("VibeToken");
-    const vibe = await Vibe.deploy(
-      dao.address,
-      staking.address,
-      fairLaunch.address,
-      influencer.address
-    );
+    const ctor = Vibe.interface.fragments.find((f) => f.type === "constructor");
+    const argc = (ctor && ctor.inputs && ctor.inputs.length) || 0;
+    const vibe = await (async () => {
+      if (argc >= 4) return Vibe.deploy(dao.address, staking.address, fairLaunch.address, influencer.address);
+      if (argc === 2) return Vibe.deploy(dao.address, deployer.address);
+      if (argc === 1) return Vibe.deploy(dao.address);
+      return Vibe.deploy();
+    })();
     await vibe.setTradingEnabled(true);
     const full = await vibe.TOTAL_SUPPLY();
     await vibe.setLimits(full, full, 0);

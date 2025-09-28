@@ -11,12 +11,17 @@ describe("WhatsYourVibeNFT", function () {
       await ethers.getSigners();
 
     const VibeToken = await ethers.getContractFactory("VibeToken");
-    vibe = await VibeToken.deploy(
-      dao.address,
-      staking.address,
-      fairLaunch.address,
-      influencer.address
-    );
+    const ctor = VibeToken.interface.fragments.find((f) => f.type === "constructor");
+    const argc = (ctor && ctor.inputs && ctor.inputs.length) || 0;
+    if (argc >= 4) {
+      vibe = await VibeToken.deploy(dao.address, staking.address, fairLaunch.address, influencer.address);
+    } else if (argc === 2) {
+      vibe = await VibeToken.deploy(dao.address, deployer.address);
+    } else if (argc === 1) {
+      vibe = await VibeToken.deploy(dao.address);
+    } else {
+      vibe = await VibeToken.deploy();
+    }
     await vibe.setTradingEnabled(true);
     const full = await vibe.TOTAL_SUPPLY();
     await vibe.setLimits(full, full, 0);
