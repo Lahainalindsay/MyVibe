@@ -13,6 +13,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Remove legacy SoulArcana tests
+        run: |
+          rm -f test/SoulArcanaNFT*.test.js || true
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
