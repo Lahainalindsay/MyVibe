@@ -1,5 +1,5 @@
 {
   "contracts/VibeToken.sol": { "statements": 92, "branches": 75, "functions": 88, "lines": 92 },
-  "contracts/SoulArcanaNFT.sol": { "statements": 92, "branches": 75, "functions": 88, "lines": 92 },
+  "contracts/WhatsYourVibeNFT.sol": { "statements": 85, "branches": 60, "functions": 80, "lines": 85 },
   "contracts/SigilArcanaOnChainRenderer.sol": { "statements": 85, "lines": 85 }
 }
