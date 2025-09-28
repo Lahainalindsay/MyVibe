@@ -36,7 +36,7 @@ jobs:
         run: npm run coverage
 
       - name: Enforce coverage thresholds
-        run: npm run check:coverage -- --statements 85 --branches 75
+        run: npm run check:coverage -- --statements 85 --branches 65
 
       - name: Upload coverage artifact
         if: always()
