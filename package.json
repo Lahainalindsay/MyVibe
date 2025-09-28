@@ -21,7 +21,9 @@
     "wyv:set-pre": "hardhat run scripts/wyvSetPre.js --network sepolia"
   },
   "devDependencies": {
+    "@openzeppelin/contracts": "^5.0.2",
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.26.3",
     "dotenv": "^16.4.5",
     "hardhat-gas-reporter": "^1.0.10",
     "solidity-coverage": "^0.8.12"
