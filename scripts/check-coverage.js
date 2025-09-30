@@ -29,6 +29,38 @@ function getTotals(summary) {
   };
 }
 
+const coverageAliases = {
+  'contracts/SoulArcanaNFT.sol': 'contracts/WhatsYourVibeNFT.sol',
+  'SoulArcanaNFT.sol': 'contracts/WhatsYourVibeNFT.sol',
+};
+
+function normalizeKey(key) {
+  if (!key) return null;
+  const normalized = key.replace(/\\/g, '/');
+  return normalized.startsWith('contracts/') ? normalized : `contracts/${normalized}`;
+}
+
+function resolveCoverageEntry(summary, file) {
+  const normalized = normalizeKey(file);
+  if (normalized && summary[normalized]) {
+    return { key: normalized, entry: summary[normalized] };
+  }
+
+  const alias = coverageAliases[file] || coverageAliases[normalized];
+  const aliasKey = normalizeKey(alias);
+  if (aliasKey && summary[aliasKey]) {
+    return { key: aliasKey, entry: summary[aliasKey] };
+  }
+
+  const lower = (normalized || file || '').toLowerCase();
+  const match = Object.keys(summary).find((k) => k.toLowerCase() === lower);
+  if (match) {
+    return { key: match, entry: summary[match] };
+  }
+
+  return null;
+}
+
 function main() {
   const args = parseArgs(process.argv);
   const thresholds = {
@@ -81,19 +113,20 @@ function main() {
   // Per-file checks
   const fileFailures = [];
   for (const [file, req] of Object.entries(perFile)) {
-    const entry = summary[file] || summary[(file.startsWith('contracts/') ? file : `contracts/${file}`)];
-    if (!entry) {
+    const resolved = resolveCoverageEntry(summary, file);
+    if (!resolved) {
       fileFailures.push(`${file}: not found in coverage summary`);
       continue;
     }
+    const { entry, key } = resolved;
     const s = entry.statements && entry.statements.pct;
     const b = entry.branches && entry.branches.pct;
     const f = entry.functions && entry.functions.pct;
     const l = entry.lines && entry.lines.pct;
-    if (req.statements != null && s < req.statements) fileFailures.push(`${file} statements: ${s}% < ${req.statements}%`);
-    if (req.branches != null && b < req.branches) fileFailures.push(`${file} branches: ${b}% < ${req.branches}%`);
-    if (req.functions != null && f < req.functions) fileFailures.push(`${file} functions: ${f}% < ${req.functions}%`);
-    if (req.lines != null && l < req.lines) fileFailures.push(`${file} lines: ${l}% < ${req.lines}%`);
+    if (req.statements != null && s < req.statements) fileFailures.push(`${key} statements: ${s}% < ${req.statements}%`);
+    if (req.branches != null && b < req.branches) fileFailures.push(`${key} branches: ${b}% < ${req.branches}%`);
+    if (req.functions != null && f < req.functions) fileFailures.push(`${key} functions: ${f}% < ${req.functions}%`);
+    if (req.lines != null && l < req.lines) fileFailures.push(`${key} lines: ${l}% < ${req.lines}%`);
   }
   if (fileFailures.length) {
     console.error('Per-file coverage check failed:\n - ' + fileFailures.join('\n - '));
