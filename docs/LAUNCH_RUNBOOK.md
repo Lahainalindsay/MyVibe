@@ -7,6 +7,7 @@ This runbook assumes **token-only** deployment first, with NFTs added later.
 - Decide DAO wallet (initially deployer is OK)
 - Decide owner (EOA now, move to multisig post-launch)
 - Confirm RPC + Etherscan API key in `.env`
+- Fill launch/ops env vars in `.env.example` (copy to `.env`), including `VIBE_TOKEN`, optional AMM checks, and launch toggles
 
 ## Parameters (exact values used)
 - Fees:
