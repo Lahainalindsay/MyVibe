@@ -35,16 +35,16 @@ describe("Ownership – admin controls", function () {
 
   it("transfers VibeToken ownership and enforces onlyOwner", async () => {
     await vibe.transferOwnership(newOwner.address);
-    await expect(vibe.setFees(0, 0, 0)).to.be.revertedWithCustomError(
+    await expect(vibe.scheduleFees(0, 0, 0)).to.be.revertedWithCustomError(
       vibe,
       "OwnableUnauthorizedAccount"
     );
-    await expect(vibe.connect(newOwner).setFees(0, 0, 0)).to.not.be.reverted;
+    await expect(vibe.connect(newOwner).scheduleFees(0, 0, 0)).to.not.be.reverted;
   });
 
   it("renouncing VibeToken ownership disables admin functions", async () => {
     await vibe.renounceOwnership();
-    await expect(vibe.setFees(0, 0, 0)).to.be.revertedWithCustomError(
+    await expect(vibe.scheduleFees(0, 0, 0)).to.be.revertedWithCustomError(
       vibe,
       "OwnableUnauthorizedAccount"
     );

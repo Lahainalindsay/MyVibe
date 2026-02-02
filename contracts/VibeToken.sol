@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
@@ -14,10 +15,16 @@ contract VibeToken is ERC20, ERC20Pausable, Ownable {
 
     // --- Fee config (denominator 10000 => 1% = 100) ---
     uint256 public constant FEE_DENOMINATOR = 10_000;
+    uint256 public constant MAX_TOTAL_FEE = 1_000; // 10%
+    uint256 public constant MAX_BURN_FEE = 500; // 5%
+    uint256 public constant MAX_DAO_FEE = 500; // 5%
+    uint256 public constant MAX_REFLECTION_FEE = 500; // 5%
+
     uint256 public burnRate = 200;      // 2.00%
     uint256 public daoRate = 200;       // 2.00%
     uint256 public reflectRate = 100;   // 1.00%
     bool    public feesEnabled = true;
+    bool    public feesFrozen = false;
 
     address public daoWallet;
 
@@ -26,9 +33,9 @@ contract VibeToken is ERC20, ERC20Pausable, Ownable {
     uint256 public maxTxAmount;       // default 2% of supply
     uint256 public maxWalletAmount;   // default 2% of supply
     uint256 public cooldownTime = 0;  // disabled by default
+    uint256 public launchTime = 0;    // set when trading is enabled
     mapping(address => uint256) private _lastTxTime;
 
-    mapping(address => bool) public isBlacklisted;
     mapping(address => bool) public excludedFromFees;
     mapping(address => bool) public excludedFromLimits;
 
@@ -45,14 +52,54 @@ contract VibeToken is ERC20, ERC20Pausable, Ownable {
     EnumerableSet.AddressSet private holders;
     uint256 public minTokensForDividends = 1_000 * 1e18;
 
+    // --- Admin delay ---
+    uint256 public constant ADMIN_DELAY = 24 hours;
+
+    struct PendingFees {
+        uint256 burn;
+        uint256 dao;
+        uint256 reflect;
+        uint256 eta;
+        bool queued;
+    }
+
+    struct PendingLimits {
+        uint256 maxTx;
+        uint256 maxWallet;
+        uint256 cooldown;
+        uint256 eta;
+        bool queued;
+    }
+
+    struct PendingAddress {
+        address value;
+        uint256 eta;
+        bool queued;
+    }
+
+    PendingFees public pendingFees;
+    PendingLimits public pendingLimits;
+    PendingAddress public pendingDao;
+
     // --- Events ---
     event FeesDistributed(uint256 burnAmt, uint256 daoAmt, uint256 reflectAmt);
     event TradingEnabled(bool enabled);
     event LimitsUpdated(uint256 maxTx, uint256 maxWallet, uint256 cooldown);
-    event BlacklistUpdated(address indexed account, bool blacklisted);
     event ExcludedFromFees(address indexed account, bool status);
     event ExcludedFromLimits(address indexed account, bool status);
     event DividendsClaimed(address indexed account, uint256 amount);
+    event Claim(address indexed holder, uint256 amount);
+    event ReflectionAccrued(uint256 amount);
+
+    event ChangeScheduled(bytes32 indexed what, uint256 value, uint256 eta);
+    event ChangeExecuted(bytes32 indexed what, uint256 value);
+    event ChangeScheduledAddress(bytes32 indexed what, address value, uint256 eta);
+    event ChangeExecutedAddress(bytes32 indexed what, address value);
+
+    event FeesScheduled(uint256 burn, uint256 dao, uint256 reflect, uint256 eta);
+    event FeesExecuted(uint256 burn, uint256 dao, uint256 reflect);
+    event LimitsScheduled(uint256 maxTx, uint256 maxWallet, uint256 cooldown, uint256 eta);
+    event LimitsExecuted(uint256 maxTx, uint256 maxWallet, uint256 cooldown);
 
     constructor(
         address _daoWallet,
@@ -73,12 +120,14 @@ contract VibeToken is ERC20, ERC20Pausable, Ownable {
         // Exclusions
         excludedFromFees[msg.sender] = true;
         excludedFromFees[daoWallet] = true;
+        excludedFromFees[address(this)] = true;
         if (staking != address(0)) excludedFromFees[staking] = true;
         if (fairLaunch != address(0)) excludedFromFees[fairLaunch] = true;
         if (influencer != address(0)) excludedFromFees[influencer] = true;
 
         excludedFromLimits[msg.sender] = true;
         excludedFromLimits[daoWallet] = true;
+        excludedFromLimits[address(this)] = true;
         if (staking != address(0)) excludedFromLimits[staking] = true;
         if (fairLaunch != address(0)) excludedFromLimits[fairLaunch] = true;
         if (influencer != address(0)) excludedFromLimits[influencer] = true;
@@ -88,36 +137,152 @@ contract VibeToken is ERC20, ERC20Pausable, Ownable {
     }
 
     // --- Admin ---
-    function setFees(uint256 _burn, uint256 _dao, uint256 _reflect) external onlyOwner {
-        uint256 sum = _burn + _dao + _reflect;
-        require(sum <= 1000, "Total fee too high"); // max 10%
-        burnRate = _burn; daoRate = _dao; reflectRate = _reflect;
-    }
+    function pause() external onlyOwner { _pause(); }
+    function unpause() external onlyOwner { _unpause(); }
 
     function setFeesEnabled(bool enabled) external onlyOwner { feesEnabled = enabled; }
 
-    function setTradingEnabled(bool enabled) external onlyOwner { tradingEnabled = enabled; emit TradingEnabled(enabled); }
+    function freezeFees() external onlyOwner { feesFrozen = true; }
 
-    function setLimits(uint256 _maxTx, uint256 _maxWallet, uint256 _cooldown) external onlyOwner {
-        require(_maxTx > 0 && _maxWallet > 0, "Bad limits");
-        maxTxAmount = _maxTx; maxWalletAmount = _maxWallet; cooldownTime = _cooldown;
-        emit LimitsUpdated(_maxTx, _maxWallet, _cooldown);
+    function scheduleFees(uint256 _burn, uint256 _dao, uint256 _reflect) external onlyOwner {
+        require(!feesFrozen, "Fees frozen");
+        _validateFees(_burn, _dao, _reflect);
+
+        uint256 eta = block.timestamp + ADMIN_DELAY;
+        pendingFees = PendingFees({ burn: _burn, dao: _dao, reflect: _reflect, eta: eta, queued: true });
+
+        emit FeesScheduled(_burn, _dao, _reflect, eta);
+        emit ChangeScheduled(keccak256("burnRate"), _burn, eta);
+        emit ChangeScheduled(keccak256("daoRate"), _dao, eta);
+        emit ChangeScheduled(keccak256("reflectRate"), _reflect, eta);
     }
 
-    function setDAO(address _dao) external onlyOwner { require(_dao != address(0), "Zero"); daoWallet = _dao; }
+    function executeFees() external onlyOwner {
+        require(pendingFees.queued, "No fees queued");
+        require(block.timestamp >= pendingFees.eta, "Too early");
+        require(!feesFrozen, "Fees frozen");
+        _validateFees(pendingFees.burn, pendingFees.dao, pendingFees.reflect);
 
-    function setBlacklist(address account, bool blacklisted) external onlyOwner { isBlacklisted[account] = blacklisted; emit BlacklistUpdated(account, blacklisted); }
+        burnRate = pendingFees.burn;
+        daoRate = pendingFees.dao;
+        reflectRate = pendingFees.reflect;
 
-    function setExcludedFromFees(address account, bool status) external onlyOwner { excludedFromFees[account] = status; emit ExcludedFromFees(account, status); _updateHolderStatus(account); }
+        pendingFees.queued = false;
+        emit FeesExecuted(burnRate, daoRate, reflectRate);
+        emit ChangeExecuted(keccak256("burnRate"), burnRate);
+        emit ChangeExecuted(keccak256("daoRate"), daoRate);
+        emit ChangeExecuted(keccak256("reflectRate"), reflectRate);
+    }
 
-    function setExcludedFromLimits(address account, bool status) external onlyOwner { excludedFromLimits[account] = status; emit ExcludedFromLimits(account, status); }
+    function scheduleLimits(uint256 _maxTx, uint256 _maxWallet, uint256 _cooldown) external onlyOwner {
+        require(_maxTx > 0 && _maxWallet > 0, "Bad limits");
+        uint256 eta = block.timestamp + ADMIN_DELAY;
+        pendingLimits = PendingLimits({ maxTx: _maxTx, maxWallet: _maxWallet, cooldown: _cooldown, eta: eta, queued: true });
+
+        emit LimitsScheduled(_maxTx, _maxWallet, _cooldown, eta);
+        emit ChangeScheduled(keccak256("maxTxAmount"), _maxTx, eta);
+        emit ChangeScheduled(keccak256("maxWalletAmount"), _maxWallet, eta);
+        emit ChangeScheduled(keccak256("cooldownTime"), _cooldown, eta);
+    }
+
+    function executeLimits() external onlyOwner {
+        require(pendingLimits.queued, "No limits queued");
+        require(block.timestamp >= pendingLimits.eta, "Too early");
+        require(pendingLimits.maxTx > 0 && pendingLimits.maxWallet > 0, "Bad limits");
+
+        maxTxAmount = pendingLimits.maxTx;
+        maxWalletAmount = pendingLimits.maxWallet;
+        cooldownTime = pendingLimits.cooldown;
+
+        pendingLimits.queued = false;
+        emit LimitsUpdated(maxTxAmount, maxWalletAmount, cooldownTime);
+        emit LimitsExecuted(maxTxAmount, maxWalletAmount, cooldownTime);
+        emit ChangeExecuted(keccak256("maxTxAmount"), maxTxAmount);
+        emit ChangeExecuted(keccak256("maxWalletAmount"), maxWalletAmount);
+        emit ChangeExecuted(keccak256("cooldownTime"), cooldownTime);
+    }
+
+    function relaxLimits(uint256 _maxTx, uint256 _maxWallet, uint256 _cooldown) external onlyOwner {
+        require(launchTime != 0, "Not launched");
+        require(_maxTx >= maxTxAmount, "maxTx only increase");
+        require(_maxWallet >= maxWalletAmount, "maxWallet only increase");
+        require(_cooldown <= cooldownTime, "cooldown only decrease");
+
+        maxTxAmount = _maxTx;
+        maxWalletAmount = _maxWallet;
+        cooldownTime = _cooldown;
+
+        emit LimitsUpdated(maxTxAmount, maxWalletAmount, cooldownTime);
+    }
+
+    function scheduleDAO(address _dao) external onlyOwner {
+        require(_dao != address(0), "Zero");
+        uint256 eta = block.timestamp + ADMIN_DELAY;
+        pendingDao = PendingAddress({ value: _dao, eta: eta, queued: true });
+        emit ChangeScheduledAddress(keccak256("daoWallet"), _dao, eta);
+    }
+
+    function executeDAO() external onlyOwner {
+        require(pendingDao.queued, "No DAO queued");
+        require(block.timestamp >= pendingDao.eta, "Too early");
+        daoWallet = pendingDao.value;
+        pendingDao.queued = false;
+        emit ChangeExecutedAddress(keccak256("daoWallet"), daoWallet);
+    }
+
+    function setDAO(address) external pure {
+        revert("Use scheduleDAO");
+    }
+
+    function setFees(uint256, uint256, uint256) external pure {
+        revert("Use scheduleFees");
+    }
+
+    function setLimits(uint256, uint256, uint256) external pure {
+        revert("Use scheduleLimits");
+    }
+
+    function setTradingEnabled(bool enabled) external onlyOwner {
+        require(enabled, "Trading can only be enabled");
+        require(!tradingEnabled, "Already enabled");
+        tradingEnabled = true;
+        launchTime = block.timestamp;
+        emit TradingEnabled(true);
+    }
+
+    function enableTrading() external onlyOwner {
+        require(!tradingEnabled, "Already enabled");
+        tradingEnabled = true;
+        launchTime = block.timestamp;
+        emit TradingEnabled(true);
+    }
+
+    function setExcludedFromFees(address account, bool status) external onlyOwner {
+        excludedFromFees[account] = status;
+        emit ExcludedFromFees(account, status);
+        _updateHolderStatus(account);
+    }
+
+    function setExcludedFromLimits(address account, bool status) external onlyOwner {
+        excludedFromLimits[account] = status;
+        emit ExcludedFromLimits(account, status);
+    }
 
     function setMinTokensForDividends(uint256 amount) external onlyOwner { minTokensForDividends = amount; }
+
+    function rescueERC20(address token, address to, uint256 amount) external onlyOwner {
+        require(token != address(this), "Cannot rescue VIBE");
+        IERC20(token).transfer(to, amount);
+    }
 
     // --- Reflection accounting ---
     function dividendsOwing(address account) public view returns (uint256) {
         uint256 newDivPoints = totalDivPoints - lastDivPoints[account];
         return (balanceOf(account) * newDivPoints) / POINT_MULTIPLIER + credit[account];
+    }
+
+    function pendingRewards(address account) external view returns (uint256) {
+        return dividendsOwing(account);
     }
 
     function claimDividends() external {
@@ -128,6 +293,7 @@ contract VibeToken is ERC20, ERC20Pausable, Ownable {
         unclaimedDividends -= owing;
         _transfer(address(this), msg.sender, owing);
         emit DividendsClaimed(msg.sender, owing);
+        emit Claim(msg.sender, owing);
     }
 
     function _accrue(address account) private {
@@ -144,6 +310,7 @@ contract VibeToken is ERC20, ERC20Pausable, Ownable {
         totalDivPoints += (reflectionAmount * POINT_MULTIPLIER) / circulating;
         unclaimedDividends += reflectionAmount;
         totalReflectionDistributed += reflectionAmount;
+        emit ReflectionAccrued(reflectionAmount);
     }
 
     function getCirculatingSupply() public view returns (uint256) {
@@ -152,8 +319,6 @@ contract VibeToken is ERC20, ERC20Pausable, Ownable {
 
     // --- Transfer logic (OZ v5: override _update) ---
     function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Pausable) {
-        require(!isBlacklisted[from] && !isBlacklisted[to], "Blacklisted");
-
         // Apply limits only on normal transfers (exclude mint/burn)
         if (from != address(0) && to != address(0)) {
             if (!excludedFromLimits[from] && !excludedFromLimits[to]) {
@@ -195,8 +360,6 @@ contract VibeToken is ERC20, ERC20Pausable, Ownable {
         _updateHolderStatus(to);
     }
 
-    // (no _transfer override in OZ v5, logic handled in _update)
-
     function _updateHolderStatus(address account) private {
         if (account == address(0)) return;
         if (balanceOf(account) >= minTokensForDividends && !excludedFromFees[account]) {
@@ -204,6 +367,14 @@ contract VibeToken is ERC20, ERC20Pausable, Ownable {
         } else {
             holders.remove(account);
         }
+    }
+
+    function _validateFees(uint256 _burn, uint256 _dao, uint256 _reflect) private pure {
+        require(_burn <= MAX_BURN_FEE, "Burn fee too high");
+        require(_dao <= MAX_DAO_FEE, "DAO fee too high");
+        require(_reflect <= MAX_REFLECTION_FEE, "Reflect fee too high");
+        uint256 sum = _burn + _dao + _reflect;
+        require(sum <= MAX_TOTAL_FEE, "Total fee too high");
     }
 
     // --- Views ---

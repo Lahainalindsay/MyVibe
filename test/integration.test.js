@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { scheduleAndExecuteLimits } = require("./helpers/admin");
 const { parseUnits, parseEther } = ethers;
 
 describe("Integration: Vibe + WhatsYourVibe + Renderer", function () {
@@ -18,7 +19,7 @@ describe("Integration: Vibe + WhatsYourVibe + Renderer", function () {
     })();
     await vibe.setTradingEnabled(true);
     const full = await vibe.TOTAL_SUPPLY();
-    await vibe.setLimits(full, full, 0);
+    await scheduleAndExecuteLimits(vibe, full, full, 0);
 
     await vibe
       .connect(deployer)

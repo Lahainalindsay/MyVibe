@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { scheduleAndExecuteFees, scheduleAndExecuteLimits } = require("./helpers/admin");
 
 describe("VibeToken – admin/audit additions", function () {
   let deployer, dao, staking, fairLaunch, influencer, a, b;
@@ -19,7 +20,7 @@ describe("VibeToken – admin/audit additions", function () {
 
     await vibe.setTradingEnabled(true);
     const full = await vibe.TOTAL_SUPPLY();
-    await vibe.setLimits(full, full, 0);
+    await scheduleAndExecuteLimits(vibe, full, full, 0);
 
     await vibe.transfer(a.address, ethers.parseUnits("200000", 18));
     await vibe.transfer(b.address, ethers.parseUnits("200000", 18));
@@ -39,7 +40,7 @@ describe("VibeToken – admin/audit additions", function () {
   });
 
   it("fees configuration applies to next transfers", async () => {
-    await vibe.setFees(300, 300, 100); // 7% total
+    await scheduleAndExecuteFees(vibe, 300, 300, 100); // 7% total
     await vibe.setExcludedFromFees(a.address, false);
     await vibe.setExcludedFromFees(b.address, false);
 
@@ -56,16 +57,23 @@ describe("VibeToken – admin/audit additions", function () {
   });
 
   it("excludedFromLimits on sender OR recipient allows transfer when trading disabled", async () => {
-    // turn trading off
-    await vibe.setTradingEnabled(false);
-    // exclude sender
-    await vibe.setExcludedFromLimits(a.address, true);
-    await expect(vibe.connect(a).transfer(b.address, 1n)).to.not.be.reverted;
+    const Vibe = await ethers.getContractFactory("VibeToken");
+    const fresh = await Vibe.deploy(
+      dao.address,
+      staking.address,
+      fairLaunch.address,
+      influencer.address
+    );
+    await fresh.transfer(a.address, 100n);
+
+    // trading is off by default; exclude sender
+    await fresh.setExcludedFromLimits(a.address, true);
+    await expect(fresh.connect(a).transfer(b.address, 1n)).to.not.be.reverted;
 
     // reset
-    await vibe.setExcludedFromLimits(a.address, false);
+    await fresh.setExcludedFromLimits(a.address, false);
     // exclude recipient
-    await vibe.setExcludedFromLimits(b.address, true);
-    await expect(vibe.connect(a).transfer(b.address, 1n)).to.not.be.reverted;
+    await fresh.setExcludedFromLimits(b.address, true);
+    await expect(fresh.connect(a).transfer(b.address, 1n)).to.not.be.reverted;
   });
 });

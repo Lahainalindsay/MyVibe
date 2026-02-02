@@ -19,7 +19,7 @@ async function main() {
 
   const vibe = await hre.ethers.getContractAt("VibeToken", vibeAddr, signer);
 
-  // 1) Enable trading
+  // 1) Enable trading (one-way)
   {
     const tx = await vibe.setTradingEnabled(true);
     console.log("setTradingEnabled tx:", tx.hash);
@@ -27,12 +27,12 @@ async function main() {
     console.log("tradingEnabled:", await vibe.tradingEnabled());
   }
 
-  // 2) Optional: set relaxed limits to full supply when VIBE_LIMITS=full
+  // 2) Optional: relax limits to full supply when VIBE_LIMITS=full
   const limitsMode = env("VIBE_LIMITS", "keep"); // keep | full
   if (limitsMode === "full") {
     const full = hre.ethers.parseUnits("1000000000", 18);
-    const tx = await vibe.setLimits(full, full, 0);
-    console.log("setLimits (full supply) tx:", tx.hash);
+    const tx = await vibe.relaxLimits(full, full, 0);
+    console.log("relaxLimits (full supply) tx:", tx.hash);
     await tx.wait();
   } else {
     console.log("Limits unchanged (set VIBE_LIMITS=full to relax)");
@@ -54,4 +54,3 @@ main().catch((e) => {
   console.error(e);
   process.exitCode = 1;
 });
-

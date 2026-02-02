@@ -1,6 +1,7 @@
 
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { scheduleAndExecuteLimits } = require("./helpers/admin");
 
 describe("VibeToken", function () {
   let deployer, dao, staking, fairLaunch, influencer, user1, user2;
@@ -25,7 +26,7 @@ describe("VibeToken", function () {
     // enable trading and remove limits
     await vibe.setTradingEnabled(true);
     const full = await vibe.TOTAL_SUPPLY();
-    await vibe.setLimits(full, full, 0);
+    await scheduleAndExecuteLimits(vibe, full, full, 0);
 
     // give user1 tokens
     await vibe
@@ -56,13 +57,6 @@ describe("VibeToken", function () {
 
     const bal2 = await vibe.balanceOf(user2.address);
     expect(bal2).to.equal(expectedNet);
-  });
-
-  it("blocks blacklisted accounts", async () => {
-    await vibe.setBlacklist(user1.address, true);
-    await expect(
-      vibe.connect(user1).transfer(user2.address, 1)
-    ).to.be.revertedWith("Blacklisted");
   });
 
   it("reflects to holders and can be claimed", async function () {

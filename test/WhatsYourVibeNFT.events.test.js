@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { scheduleAndExecuteLimits } = require("./helpers/admin");
 const { parseUnits, parseEther } = ethers;
 
 describe("WhatsYourVibeNFT – events", function () {
@@ -19,7 +20,7 @@ describe("WhatsYourVibeNFT – events", function () {
     );
     await vibe.setTradingEnabled(true);
     const full = await vibe.TOTAL_SUPPLY();
-    await vibe.setLimits(full, full, 0);
+    await scheduleAndExecuteLimits(vibe, full, full, 0);
 
     const Renderer = await ethers.getContractFactory("SigilArcanaOnChainRenderer");
     renderer = await Renderer.deploy();

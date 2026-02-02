@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { scheduleAndExecuteLimits } = require("./helpers/admin");
 
 describe("VibeToken – audit-focused tests", function () {
   let deployer, dao, staking, fairLaunch, influencer, a, b;
@@ -22,7 +23,7 @@ describe("VibeToken – audit-focused tests", function () {
     }
     await vibe.setTradingEnabled(true);
     const full = await vibe.TOTAL_SUPPLY();
-    await vibe.setLimits(full, full, 0);
+    await scheduleAndExecuteLimits(vibe, full, full, 0);
     await vibe.transfer(a.address, ethers.parseUnits("100000", 18));
     await vibe.transfer(b.address, ethers.parseUnits("100000", 18));
   });
@@ -31,13 +32,6 @@ describe("VibeToken – audit-focused tests", function () {
     await expect(
       Vibe.deploy(ethers.ZeroAddress, staking.address, fairLaunch.address, influencer.address)
     ).to.be.revertedWith("DAO wallet required");
-  });
-
-  it("direct transfers to blacklisted dao wallet revert", async () => {
-    await vibe.setBlacklist(dao.address, true);
-    await expect(
-      vibe.connect(a).transfer(dao.address, 1n)
-    ).to.be.revertedWith("Blacklisted");
   });
 
   it("recipient excludedFromFees avoids fee collection", async () => {

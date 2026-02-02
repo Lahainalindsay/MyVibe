@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { scheduleAndExecuteFees, scheduleAndExecuteLimits } = require("./helpers/admin");
 
 describe("VibeToken – behavior", function () {
   let deployer, dao, staking, fairLaunch, influencer, a, b, c;
@@ -37,7 +38,7 @@ describe("VibeToken – behavior", function () {
     // enable trading and widen limits
     await vibe.setTradingEnabled(true);
     const full = await vibe.TOTAL_SUPPLY();
-    await vibe.setLimits(full, full, 0);
+    await scheduleAndExecuteLimits(vibe, full, full, 0);
 
     await expect(vibe.connect(a).transfer(b.address, 1)).to.not.be.reverted;
   });
@@ -46,7 +47,7 @@ describe("VibeToken – behavior", function () {
     await vibe.setTradingEnabled(true);
     const maxTx = ethers.parseUnits("1000", 18);
     const maxWallet = ethers.parseUnits("200", 18);
-    await vibe.setLimits(maxTx, maxWallet, 0);
+    await scheduleAndExecuteLimits(vibe, maxTx, maxWallet, 0);
 
     // a already has 100k, b has 100k. Reduce b to be under wallet cap
     await vibe.connect(b).transfer(deployer.address, ethers.parseUnits("99950", 18));
@@ -66,7 +67,7 @@ describe("VibeToken – behavior", function () {
   it("enforces cooldown when set", async () => {
     await vibe.setTradingEnabled(true);
     const full = await vibe.TOTAL_SUPPLY();
-    await vibe.setLimits(full, full, 60); // 60s cooldown
+    await scheduleAndExecuteLimits(vibe, full, full, 60); // 60s cooldown
 
     await vibe.connect(a).transfer(b.address, 10n);
     await expect(vibe.connect(a).transfer(b.address, 1n)).to.be.revertedWith(
@@ -77,7 +78,7 @@ describe("VibeToken – behavior", function () {
   it("enforces cooldown for recipient (to)", async () => {
     await vibe.setTradingEnabled(true);
     const full = await vibe.TOTAL_SUPPLY();
-    await vibe.setLimits(full, full, 60); // 60s cooldown
+    await scheduleAndExecuteLimits(vibe, full, full, 60); // 60s cooldown
 
     await vibe.connect(a).transfer(b.address, 10n);
     await expect(vibe.connect(c).transfer(b.address, 1n)).to.be.revertedWith(
@@ -86,18 +87,22 @@ describe("VibeToken – behavior", function () {
   });
 
   it("updates fee rates and rejects excessive total", async () => {
-    await expect(vibe.setFees(600, 300, 200)).to.be.revertedWith(
-      "Total fee too high"
+    await expect(vibe.scheduleFees(600, 300, 200)).to.be.revertedWith(
+      "Burn fee too high"
     );
-    await vibe.setFees(100, 100, 100);
+    await scheduleAndExecuteFees(vibe, 100, 100, 100);
     expect(await vibe.burnRate()).to.equal(100);
     expect(await vibe.daoRate()).to.equal(100);
     expect(await vibe.reflectRate()).to.equal(100);
   });
 
   it("setLimits emits and rejects bad limits", async () => {
-    await expect(vibe.setLimits(0, 1n, 0)).to.be.revertedWith("Bad limits");
-    await expect(vibe.setLimits(1n, 1n, 0)).to.emit(vibe, "LimitsUpdated");
+    await expect(vibe.scheduleLimits(0, 1n, 0)).to.be.revertedWith("Bad limits");
+    await vibe.scheduleLimits(1n, 1n, 0);
+    const delay = await vibe.ADMIN_DELAY();
+    await ethers.provider.send("evm_increaseTime", [Number(delay)]);
+    await ethers.provider.send("evm_mine", []);
+    await expect(vibe.executeLimits()).to.emit(vibe, "LimitsUpdated");
   });
 
   it("skips limits when either side is excludedFromLimits", async () => {
@@ -109,7 +114,7 @@ describe("VibeToken – behavior", function () {
   it("no fee path when fees are disabled", async () => {
     await vibe.setTradingEnabled(true);
     const full = await vibe.TOTAL_SUPPLY();
-    await vibe.setLimits(full, full, 0);
+    await scheduleAndExecuteLimits(vibe, full, full, 0);
 
     await vibe.setFeesEnabled(false);
     const amount = ethers.parseUnits("1000", 18);
@@ -123,7 +128,7 @@ describe("VibeToken – behavior", function () {
   it("excludedFromFees avoids fee collection", async () => {
     await vibe.setTradingEnabled(true);
     const full = await vibe.TOTAL_SUPPLY();
-    await vibe.setLimits(full, full, 0);
+    await scheduleAndExecuteLimits(vibe, full, full, 0);
 
     await vibe.setExcludedFromFees(a.address, true);
     const amount = ethers.parseUnits("500", 18);
@@ -136,29 +141,8 @@ describe("VibeToken – behavior", function () {
 
   it("only owner can manage admin actions", async () => {
     await expect(
-      vibe.connect(a).setBlacklist(b.address, true)
+      vibe.connect(a).scheduleFees(0, 0, 0)
     ).to.be.revertedWithCustomError(vibe, "OwnableUnauthorizedAccount");
-
-    await expect(
-      vibe.connect(a).setFees(0, 0, 0)
-    ).to.be.revertedWithCustomError(vibe, "OwnableUnauthorizedAccount");
-  });
-
-  it("blacklist blocks both send and receive", async () => {
-    await vibe.setTradingEnabled(true);
-    const full = await vibe.TOTAL_SUPPLY();
-    await vibe.setLimits(full, full, 0);
-
-    await vibe.setBlacklist(a.address, true);
-    await expect(vibe.connect(a).transfer(b.address, 1)).to.be.revertedWith(
-      "Blacklisted"
-    );
-
-    await vibe.setBlacklist(a.address, false);
-    await vibe.setBlacklist(b.address, true);
-    await expect(vibe.connect(a).transfer(b.address, 1)).to.be.revertedWith(
-      "Blacklisted"
-    );
   });
 
   it("exclusion flags emit events", async () => {

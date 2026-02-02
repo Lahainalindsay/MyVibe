@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { scheduleAndExecuteLimits } = require("./helpers/admin");
 
 describe("VibeToken – AMM liquidity interactions (mock v2)", function () {
   let deployer, dao, staking, fairLaunch, influencer, lp, trader;
@@ -24,7 +25,7 @@ describe("VibeToken – AMM liquidity interactions (mock v2)", function () {
     // Enable trading and relax limits for AMM flows
     await vibe.setTradingEnabled(true);
     const full = await vibe.TOTAL_SUPPLY();
-    await vibe.setLimits(full, full, 0);
+    await scheduleAndExecuteLimits(vibe, full, full, 0);
 
     // Mint/prepare paired token
     const MockERC20 = await ethers.getContractFactory("MockERC20");

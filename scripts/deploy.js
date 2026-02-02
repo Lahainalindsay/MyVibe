@@ -10,6 +10,7 @@ async function main() {
   const signers = await hre.ethers.getSigners();
   const deployer = signers[0];
   if (!deployer) throw new Error("No deployer signer available. Check PRIVATE_KEY in .env");
+  const isLocal = ["hardhat", "localhost"].includes(hre.network.name);
 
   const deployerAddr = await deployer.getAddress();
   console.log("🚀 Deployer:", deployerAddr);
@@ -38,13 +39,28 @@ async function main() {
   const vibeAddr = await vibe.getAddress?.() || vibe.address;
   console.log("✅ VibeToken:", vibeAddr);
 
-  // Enable trading + loosen limits for testing
-  await vibe.setTradingEnabled(true);
-  await vibe.setLimits(
-    hre.ethers.parseUnits("1000000000", 18), // maxTx ~ full supply
-    hre.ethers.parseUnits("1000000000", 18), // maxWallet ~ full supply
-    0 // cooldown
-  );
+  // For local testing only: enable trading + loosen limits
+  if (isLocal) {
+    await vibe.setTradingEnabled(true);
+    await vibe.scheduleLimits(
+      hre.ethers.parseUnits("1000000000", 18), // maxTx ~ full supply
+      hre.ethers.parseUnits("1000000000", 18), // maxWallet ~ full supply
+      0 // cooldown
+    );
+    const delay = await vibe.ADMIN_DELAY();
+    await hre.ethers.provider.send("evm_increaseTime", [Number(delay)]);
+    await hre.ethers.provider.send("evm_mine", []);
+    await vibe.executeLimits();
+  } else {
+    console.log("ℹ️ Trading not enabled. Enable later with enableTrading().");
+    await vibe.scheduleLimits(
+      hre.ethers.parseUnits("1000000000", 18),
+      hre.ethers.parseUnits("1000000000", 18),
+      0
+    );
+    const pending = await vibe.pendingLimits();
+    console.log("ℹ️ Limits scheduled; execute after ETA:", Number(pending.eta));
+  }
 
   const Renderer = await hre.ethers.getContractFactory("SigilArcanaOnChainRenderer");
   const renderer = await Renderer.deploy();

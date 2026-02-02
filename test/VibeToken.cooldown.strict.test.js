@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { scheduleAndExecuteLimits } = require("./helpers/admin");
 
 describe("VibeToken – STRICT cooldown boundaries (non-coverage)", function () {
   let deployer, dao, staking, fairLaunch, influencer, a, b;
@@ -34,7 +35,7 @@ describe("VibeToken – STRICT cooldown boundaries (non-coverage)", function () 
 
     await vibe.setTradingEnabled(true);
     const full = await vibe.TOTAL_SUPPLY();
-    await vibe.setLimits(full, full, 60); // 60s cooldown
+    await scheduleAndExecuteLimits(vibe, full, full, 60); // 60s cooldown
 
     await vibe.transfer(a.address, ethers.parseUnits("100000", 18));
   });

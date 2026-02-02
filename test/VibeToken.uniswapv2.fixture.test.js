@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { scheduleAndExecuteLimits } = require("./helpers/admin");
 
 describe("VibeToken – UniswapV2-like fixture", function () {
   let deployer, dao, staking, fairLaunch, influencer, lp, trader;
@@ -23,7 +24,7 @@ describe("VibeToken – UniswapV2-like fixture", function () {
 
     await vibe.setTradingEnabled(true);
     const full = await vibe.TOTAL_SUPPLY();
-    await vibe.setLimits(full, full, 0);
+    await scheduleAndExecuteLimits(vibe, full, full, 0);
 
     const MockERC20 = await ethers.getContractFactory("MockERC20");
     dai = await MockERC20.deploy("Mock DAI", "mDAI", ethers.parseUnits("100000000", 18));
