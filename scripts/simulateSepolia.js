@@ -12,6 +12,26 @@ function asBool(v, def = false) {
   return ["1", "true", "yes", "on"].includes(String(s).toLowerCase());
 }
 
+function assertValidAddress(name, value, { optional = false } = {}) {
+  if (!value) {
+    if (optional) return;
+    throw new Error(`${name} not set in environment`);
+  }
+  if (!hre.ethers.isAddress(value)) {
+    throw new Error(`${name} is not a valid address: ${value}`);
+  }
+}
+
+async function assertContractDeployed(name, address) {
+  const code = await hre.ethers.provider.getCode(address);
+  if (!code || code === "0x") {
+    throw new Error(
+      `${name} has no contract bytecode at ${address} on ${hre.network.name}. ` +
+      "Use the deployed Sepolia contract address."
+    );
+  }
+}
+
 async function ensureEth(sender, recipient, minEthWei) {
   const bal = await sender.provider.getBalance(recipient);
   if (bal >= minEthWei) return false;
@@ -32,14 +52,32 @@ async function ensureVibe(vibe, sender, recipient, minVibeWei) {
   return true;
 }
 
+async function resolveNftContractName(preferred) {
+  if (preferred) return preferred;
+  try {
+    await hre.artifacts.readArtifact("WhatsYourVibeNFT");
+    return "WhatsYourVibeNFT";
+  } catch (_) {}
+  try {
+    await hre.artifacts.readArtifact("SoulArcanaNFT");
+    return "SoulArcanaNFT";
+  } catch (_) {}
+  throw new Error(
+    "No supported NFT artifact found. Expected WhatsYourVibeNFT (or legacy SoulArcanaNFT)."
+  );
+}
+
 async function main() {
   const vibeAddr = env("VIBE_ADDRESS");
-  if (!vibeAddr) throw new Error("VIBE_ADDRESS not set in environment");
+  assertValidAddress("VIBE_ADDRESS", vibeAddr);
 
   const vyxAddr = env("VYX_ADDRESS");
   const wyvAddr = env("WYV_ADDRESS");
   const soulAddr = vyxAddr || wyvAddr || env("SOUL_ADDRESS");
+  const nftContractFromEnv = env("SIM_NFT_CONTRACT");
+  const nftContractName = await resolveNftContractName(nftContractFromEnv);
   const stakingAddr = env("STAKING_ADDRESS");
+  assertValidAddress("NFT address", soulAddr, { optional: true });
 
   // Signers: primary from Hardhat config (PRIVATE_KEY), plus optional env keys for wallet2/3
   const [primary] = await hre.ethers.getSigners();
@@ -58,11 +96,16 @@ async function main() {
   if (wallet2) console.log("Wallet2:", w2Addr);
   if (wallet3) console.log("Wallet3:", w3Addr);
   console.log("VibeToken:", vibeAddr);
-  if (soulAddr) console.log("NFT:", soulAddr, (vyxAddr || wyvAddr) ? "(VYX)" : "(SoulArcana)");
+  if (soulAddr) console.log("NFT:", soulAddr, `(${nftContractName})`);
   if (stakingAddr) console.log("Staking address (for approve):", stakingAddr);
 
+  await assertContractDeployed("VIBE_ADDRESS", vibeAddr);
+  if (soulAddr) await assertContractDeployed("NFT address", soulAddr);
+
   const vibe = await hre.ethers.getContractAt("VibeToken", vibeAddr, primary);
-  const soul = soulAddr ? await hre.ethers.getContractAt((vyxAddr || wyvAddr) ? "WhatsYourVibeNFT" : "SoulArcanaNFT", soulAddr, primary) : null;
+  const soul = soulAddr
+    ? await hre.ethers.getContractAt(nftContractName, soulAddr, primary)
+    : null;
 
   // Optionally enable trading
   if (asBool("SIM_ENABLE_TRADING")) {
@@ -111,6 +154,7 @@ async function main() {
   // Approve staking for each wallet
   const approveAmtStr = env("SIM_APPROVE_AMOUNT", "0"); // e.g. "10000"
   if (stakingAddr && approveAmtStr && Number(approveAmtStr) > 0) {
+    assertValidAddress("STAKING_ADDRESS", stakingAddr);
     const approveWei = hre.ethers.parseUnits(String(approveAmtStr), 18);
     const a1 = await vibe.approve(stakingAddr, approveWei);
     await a1.wait();

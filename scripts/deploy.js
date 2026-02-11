@@ -6,6 +6,26 @@ function env(name) {
   return v && v.trim().length ? v.trim() : undefined;
 }
 
+function resolveAddress(hre, name, fallback) {
+  const value = env(name);
+  if (!value) return fallback;
+  if (!hre.ethers.isAddress(value)) {
+    console.warn(`⚠️ Invalid ${name} (${value}); using fallback ${fallback}`);
+    return fallback;
+  }
+  return hre.ethers.getAddress(value);
+}
+
+async function waitForDeploymentCompat(contract) {
+  if (typeof contract.waitForDeployment === "function") {
+    await contract.waitForDeployment();
+    return;
+  }
+  if (typeof contract.deployed === "function") {
+    await contract.deployed();
+  }
+}
+
 async function main() {
   const signers = await hre.ethers.getSigners();
   const deployer = signers[0];
@@ -15,11 +35,17 @@ async function main() {
   const deployerAddr = await deployer.getAddress();
   console.log("🚀 Deployer:", deployerAddr);
 
-  // Resolve auxiliary addresses: prefer env vars; fallback to additional signers; else deployer
-  const dao = env("DAO_ADDRESS") || (signers[1] && (await signers[1].getAddress())) || deployerAddr;
-  const staking = env("STAKING_ADDRESS") || (signers[2] && (await signers[2].getAddress())) || deployerAddr;
-  const fairLaunch = env("FAIRLAUNCH_ADDRESS") || (signers[3] && (await signers[3].getAddress())) || deployerAddr;
-  const influencer = env("INFLUENCER_ADDRESS") || (signers[4] && (await signers[4].getAddress())) || deployerAddr;
+  // Resolve auxiliary addresses: prefer valid env vars; fallback to additional signers; else deployer
+  const daoFallback = (signers[1] && (await signers[1].getAddress())) || deployerAddr;
+  const stakingFallback = (signers[2] && (await signers[2].getAddress())) || deployerAddr;
+  const fairLaunchFallback = (signers[3] && (await signers[3].getAddress())) || deployerAddr;
+  const influencerFallback = (signers[4] && (await signers[4].getAddress())) || deployerAddr;
+
+  const dao = resolveAddress(hre, "DAO_ADDRESS", daoFallback);
+  const staking = resolveAddress(hre, "STAKING_ADDRESS", stakingFallback);
+  const fairLaunch = resolveAddress(hre, "FAIRLAUNCH_ADDRESS", fairLaunchFallback);
+  const influencer = resolveAddress(hre, "INFLUENCER_ADDRESS", influencerFallback);
+  const nftOwner = resolveAddress(hre, "NFT_OWNER_ADDRESS", deployerAddr);
 
   const VibeToken = await hre.ethers.getContractFactory("VibeToken");
   // Support multiple constructor signatures by inspecting inputs length
@@ -35,7 +61,7 @@ async function main() {
   } else {
     vibe = await VibeToken.deploy();
   }
-  await vibe.deployed?.();
+  await waitForDeploymentCompat(vibe);
   const vibeAddr = await vibe.getAddress?.() || vibe.address;
   console.log("✅ VibeToken:", vibeAddr);
 
@@ -64,18 +90,26 @@ async function main() {
 
   const Renderer = await hre.ethers.getContractFactory("SigilArcanaOnChainRenderer");
   const renderer = await Renderer.deploy();
-  await renderer.deployed?.();
+  await waitForDeploymentCompat(renderer);
   const rendererAddr = await renderer.getAddress?.() || renderer.address;
   console.log("✅ Renderer:", rendererAddr);
 
   const WhatsYourVibeNFT = await hre.ethers.getContractFactory("WhatsYourVibeNFT");
-  const soul = await WhatsYourVibeNFT.deploy(rendererAddr, vibeAddr, deployerAddr);
-  await soul.deployed?.();
+  const soul = await WhatsYourVibeNFT.deploy(rendererAddr, vibeAddr, nftOwner);
+  await waitForDeploymentCompat(soul);
   const soulAddr = await soul.getAddress?.() || soul.address;
   console.log("✅ WhatsYourVibeNFT:", soulAddr);
 
   // Exclude NFT from fees/limits
-  await vibe.setExcludedFromFees(soulAddr, true);
+  if (soulAddr && soulAddr !== hre.ethers.ZeroAddress) {
+    const code = await hre.ethers.provider.getCode(soulAddr);
+    if (code !== "0x") {
+      await vibe.setExcludedFromFees(soulAddr, true);
+      console.log("✅ Excluded contract from fees:", soulAddr);
+    } else {
+      console.log("ℹ️ soulAddr is not a contract; not excluding:", soulAddr);
+    }
+  }
   await vibe.setExcludedFromLimits(soulAddr, true);
 
   // Set mint prices
