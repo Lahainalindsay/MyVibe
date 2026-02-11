@@ -26,6 +26,17 @@ async function waitForDeploymentCompat(contract) {
   }
 }
 
+async function findSignerByAddress(signers, target) {
+  if (!target) return undefined;
+  const normalized = target.toLowerCase();
+  for (const signer of signers) {
+    if (!signer || typeof signer.getAddress !== "function") continue;
+    const addr = (await signer.getAddress()).toLowerCase();
+    if (addr === normalized) return signer;
+  }
+  return undefined;
+}
+
 async function main() {
   const signers = await hre.ethers.getSigners();
   const deployer = signers[0];
@@ -46,6 +57,7 @@ async function main() {
   const fairLaunch = resolveAddress(hre, "FAIRLAUNCH_ADDRESS", fairLaunchFallback);
   const influencer = resolveAddress(hre, "INFLUENCER_ADDRESS", influencerFallback);
   const nftOwner = resolveAddress(hre, "NFT_OWNER_ADDRESS", deployerAddr);
+  const nftOwnerSigner = await findSignerByAddress(signers, nftOwner);
 
   const VibeToken = await hre.ethers.getContractFactory("VibeToken");
   // Support multiple constructor signatures by inspecting inputs length
@@ -112,8 +124,15 @@ async function main() {
   }
   await vibe.setExcludedFromLimits(soulAddr, true);
 
-  // Set mint prices
-  await soul.setPrices(hre.ethers.parseEther("0.01"), hre.ethers.parseUnits("1000", 18));
+  // Set mint prices with owner signer when available.
+  if (nftOwnerSigner) {
+    await soul.connect(nftOwnerSigner).setPrices(
+      hre.ethers.parseEther("0.01"),
+      hre.ethers.parseUnits("1000", 18)
+    );
+  } else {
+    console.log(`⚠️ Skipping setPrices: NFT owner ${nftOwner} is not an available signer.`);
+  }
 
   console.log("\n🎉 Deployment complete");
   console.log("VIBE_ADDRESS=", vibeAddr);

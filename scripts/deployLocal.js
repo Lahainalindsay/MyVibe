@@ -12,6 +12,17 @@ async function getAddress(contract) {
   return contract.address;
 }
 
+async function findSignerByAddress(signers, target) {
+  if (!target) return undefined;
+  const normalized = target.toLowerCase();
+  for (const signer of signers) {
+    if (!signer || typeof signer.getAddress !== "function") continue;
+    const addr = (await signer.getAddress()).toLowerCase();
+    if (addr === normalized) return signer;
+  }
+  return undefined;
+}
+
 async function main() {
   const AUTO_LAUNCH = process.env.AUTO_LAUNCH === "1";
   const signers = await hre.ethers.getSigners();
@@ -73,8 +84,11 @@ async function main() {
   const rendererAddr = await getAddress(renderer);
   console.log("✅ Renderer:", rendererAddr);
 
+  const nftOwner = process.env.NFT_OWNER_ADDRESS || deployerAddr;
+  const nftOwnerSigner = await findSignerByAddress(signers, nftOwner);
+
   const WhatsYourVibeNFT = await hre.ethers.getContractFactory("WhatsYourVibeNFT");
-  const soul = await WhatsYourVibeNFT.deploy(rendererAddr, vibeAddr, deployerAddr);
+  const soul = await WhatsYourVibeNFT.deploy(rendererAddr, vibeAddr, nftOwner);
   await waitDeployed(soul);
   const soulAddr = await getAddress(soul);
   console.log("✅ WhatsYourVibeNFT:", soulAddr);
@@ -90,7 +104,14 @@ async function main() {
     }
   }
 
-  await soul.setPrices(hre.ethers.parseEther("0.01"), hre.ethers.parseUnits("1000", 18));
+  if (nftOwnerSigner) {
+    await soul.connect(nftOwnerSigner).setPrices(
+      hre.ethers.parseEther("0.01"),
+      hre.ethers.parseUnits("1000", 18)
+    );
+  } else {
+    console.log(`⚠️ Skipping setPrices: NFT owner ${nftOwner} is not an available signer.`);
+  }
 
   console.log("\n🎉 Local deployment complete");
   console.log("VIBE_ADDRESS=", vibeAddr);
