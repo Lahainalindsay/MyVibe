@@ -1,5 +1,7 @@
 node_modules
 .env
+.venv/
+__pycache__/
 
 # Hardhat files
 /cache
@@ -15,3 +17,8 @@ node_modules
 
 # Hardhat Ignition default folder for deployments against a local node
 ignition/deployments/chain-31337
+
+# Vibe UI local/build files
+Vibe_UI/.env.local
+Vibe_UI/.next/
+Vibe_UI/tsconfig.tsbuildinfo

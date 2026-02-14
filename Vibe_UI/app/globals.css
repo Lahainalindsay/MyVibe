@@ -1,0 +1,228 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --vibe-bg:
+    radial-gradient(1200px 800px at 50% 10%, rgba(160, 110, 255, 0.25), rgba(0,0,0,0)),
+    radial-gradient(900px 700px at 20% 60%, rgba(90, 110, 255, 0.18), rgba(0,0,0,0)),
+    radial-gradient(800px 600px at 80% 70%, rgba(160, 110, 255, 0.14), rgba(0,0,0,0)),
+    linear-gradient(180deg, rgba(10, 8, 18, 1), rgba(0,0,0,1));
+  --vibe-accent: rgba(160, 110, 255, 1);
+}
+
+body {
+  margin: 0;
+  background: #0b0b12;
+  color: white;
+  font-family: "Space Grotesk", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+.image-app {
+  position: relative;
+  width: min(100vw, 1024px);
+  margin: 0 auto;
+}
+
+.image-app img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.energy-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.energy-dot {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(200, 160, 255, 0.9), rgba(140, 80, 255, 0.1) 70%, transparent 75%);
+  box-shadow: 0 0 12px rgba(180, 120, 255, 0.6), 0 0 28px rgba(120, 80, 255, 0.45);
+  opacity: 0.9;
+  filter: blur(0.2px);
+}
+
+.energy-dot.trail {
+  width: 6px;
+  height: 6px;
+  opacity: 0.6;
+  box-shadow: 0 0 10px rgba(180, 120, 255, 0.45);
+}
+
+@keyframes trace-1 {
+  0% {
+    transform: translate(8%, 18%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.9;
+  }
+  90% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(84%, 32%);
+    opacity: 0;
+  }
+}
+
+@keyframes trace-2 {
+  0% {
+    transform: translate(12%, 64%);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.75;
+  }
+  92% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translate(78%, 78%);
+    opacity: 0;
+  }
+}
+
+@keyframes trace-3 {
+  0% {
+    transform: translate(70%, 44%);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.6;
+  }
+  92% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate(26%, 56%);
+    opacity: 0;
+  }
+}
+
+@keyframes trace-4 {
+  0% {
+    transform: translate(50%, 30%);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.85;
+  }
+  70% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(78%, 40%);
+    opacity: 0;
+  }
+}
+
+.energy-dot.dot-1 {
+  animation: trace-1 7.5s linear infinite;
+}
+
+.energy-dot.dot-2 {
+  animation: trace-2 9s linear infinite;
+  animation-delay: 0.8s;
+}
+
+.energy-dot.dot-3 {
+  animation: trace-3 6.5s linear infinite;
+  animation-delay: 1.2s;
+}
+
+.energy-dot.dot-4 {
+  animation: trace-4 5.8s linear infinite;
+  animation-delay: 0.4s;
+}
+
+.hotspot {
+  position: absolute;
+  display: block;
+}
+
+.hotspot a,
+.hotspot button {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: transparent;
+  border: 0;
+  color: transparent;
+  cursor: pointer;
+}
+
+.hotspot-btn {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: transparent !important;
+  padding: 0 !important;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.vibe-bg {
+  background: var(--vibe-bg);
+}
+
+.starfield::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.35) 50%, transparent 52%),
+    radial-gradient(1px 1px at 40% 70%, rgba(255,255,255,0.28) 50%, transparent 52%),
+    radial-gradient(1px 1px at 70% 30%, rgba(255,255,255,0.25) 50%, transparent 52%),
+    radial-gradient(1px 1px at 85% 80%, rgba(255,255,255,0.22) 50%, transparent 52%),
+    radial-gradient(1px 1px at 25% 85%, rgba(255,255,255,0.18) 50%, transparent 52%),
+    radial-gradient(1px 1px at 60% 55%, rgba(255,255,255,0.15) 50%, transparent 52%);
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.glow-line {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(160,110,255,0.5), transparent);
+  opacity: 0.6;
+}
+
+.card-surface {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  backdrop-filter: blur(10px);
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, rgba(160,110,255,0.55), rgba(120,80,210,0.45));
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.05);
+}
+
+.btn-quiet {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.btn-quiet:hover {
+  background: rgba(255,255,255,0.05);
+}

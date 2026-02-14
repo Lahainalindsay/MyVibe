@@ -67,6 +67,52 @@ That’s it. You can now interact with the deployed contracts in Hardhat console
 
 ---
 
+## Launch Everything (Contracts + UI)
+
+Use two terminals from the repo root.
+
+1) Terminal A: smart contracts workspace
+
+```bash
+npm install
+npm run build
+npx hardhat test
+```
+
+For local contract testing:
+
+```bash
+npm run dev
+```
+
+For Sepolia deployment (used by the UI token balance):
+
+```bash
+npm run deploy:sepolia
+```
+
+2) Terminal B: Next.js UI (`Vibe_UI`)
+
+```bash
+cd Vibe_UI
+npm install
+cp .env.example .env.local
+```
+
+Set at least:
+- `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`
+- `NEXT_PUBLIC_VIBE_TOKEN_ADDRESS` (your deployed VIBE token address, usually Sepolia)
+
+Then run:
+
+```bash
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+---
+
 ## What’s Inside
 
 Project is organized for clarity and testability:
